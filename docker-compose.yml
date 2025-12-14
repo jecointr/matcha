@@ -1,0 +1,65 @@
+services:
+  # Base de données PostgreSQL 18
+  postgres:
+    image: postgres:18-alpine
+    container_name: matcha_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./db:/docker-entrypoint-initdb.d
+    networks:
+      - matcha-network
+
+  # Back-end (Node.js 22)
+  server:
+    build: ./server
+    container_name: matcha_server
+    restart: always
+    ports:
+      - "${PORT}:${PORT}"
+    environment:
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_HOST=postgres
+      - DB_NAME=${POSTGRES_DB}
+      - DB_PORT=5432
+      - PORT=${PORT}
+      - JWT_SECRET=${JWT_SECRET}
+      - CLIENT_URL=${CLIENT_URL}
+    depends_on:
+      - postgres
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+    networks:
+      - matcha-network
+
+  # Front-end (Node 22 pour le build tool)
+  client:
+    build: ./client
+    container_name: matcha_client
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:${PORT}
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    stdin_open: true
+    tty: true
+    networks:
+      - matcha-network
+
+volumes:
+  db_data:
+
+networks:
+  matcha-network:
+    driver: bridge
