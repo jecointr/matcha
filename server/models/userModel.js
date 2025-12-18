@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const crypto = require('crypto'); // <--- LIGNE AJOUTÉE OBLIGATOIRE
 
 // Trouver par email
 const findByEmail = async (email) => {
@@ -17,13 +18,15 @@ const findByUsername = async (username) => {
 // Créer un utilisateur
 const createUser = async (user) => {
     const { username, email, password, firstName, lastName } = user;
+    
+    // Génération d'un token simple pour l'email (uuid)
+    const verificationToken = crypto.randomUUID(); 
+    
     const query = `
         INSERT INTO users (username, email, password, first_name, last_name, verification_token)
         VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING id, username, email, first_name, last_name;
     `;
-    // Génération d'un token simple pour l'email (uuid)
-    const verificationToken = crypto.randomUUID(); 
     
     const { rows } = await db.query(query, [username, email, password, firstName, lastName, verificationToken]);
     return rows[0];
