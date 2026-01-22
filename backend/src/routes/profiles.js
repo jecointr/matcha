@@ -80,17 +80,21 @@ router.get('/browse', async (req, res) => {
       conditions.push(`u.fame_rating <= $${++paramCount}`);
     }
 
-    // Distance filter (if user has location)
+    // Distance filter
+    let distanceFormula = '0';
     let distanceSelect = '0 as distance';
+    
     if (user.latitude && user.longitude) {
       params.push(user.latitude, user.longitude);
-      distanceSelect = `ROUND(earth_distance(
+      distanceFormula = `ROUND(earth_distance(
         ll_to_earth($${++paramCount}, $${++paramCount}),
         ll_to_earth(u.latitude, u.longitude)
-      )::numeric / 1000, 1) as distance`;
+      )::numeric / 1000, 1)`;
+      
+      distanceSelect = `${distanceFormula} as distance`;
       
       if (maxDistance) {
-        params.push(parseFloat(maxDistance) * 1000); // Convert km to meters
+        params.push(parseFloat(maxDistance) * 1000);
         conditions.push(`earth_distance(
           ll_to_earth($${paramCount - 1}, $${paramCount}),
           ll_to_earth(u.latitude, u.longitude)
@@ -99,19 +103,22 @@ router.get('/browse', async (req, res) => {
     }
 
     // Tags filter
+    let tagsCountQuery = '0';
     let tagsSelect = '0 as common_tags';
+    
     if (tags) {
       const tagIds = tags.split(',').map(t => parseInt(t)).filter(t => !isNaN(t));
       if (tagIds.length > 0) {
         params.push(tagIds);
-        tagsSelect = `(SELECT COUNT(*) FROM user_tags ut WHERE ut.user_id = u.id AND ut.tag_id = ANY($${++paramCount})) as common_tags`;
+        tagsCountQuery = `(SELECT COUNT(*) FROM user_tags ut WHERE ut.user_id = u.id AND ut.tag_id = ANY($${++paramCount}))`;
+        tagsSelect = `${tagsCountQuery} as common_tags`;
         conditions.push(`EXISTS (SELECT 1 FROM user_tags ut WHERE ut.user_id = u.id AND ut.tag_id = ANY($${paramCount}))`);
       }
     } else {
-      // Calculate common tags with current user
-      tagsSelect = `(SELECT COUNT(*) FROM user_tags ut1 
-                     JOIN user_tags ut2 ON ut1.tag_id = ut2.tag_id 
-                     WHERE ut1.user_id = u.id AND ut2.user_id = $1) as common_tags`;
+      tagsCountQuery = `(SELECT COUNT(*) FROM user_tags ut1 
+                      JOIN user_tags ut2 ON ut1.tag_id = ut2.tag_id 
+                      WHERE ut1.user_id = u.id AND ut2.user_id = $1)`;
+      tagsSelect = `${tagsCountQuery} as common_tags`;
     }
 
     // Sorting
@@ -129,8 +136,7 @@ router.get('/browse', async (req, res) => {
         break;
       case 'match':
       default:
-        // Match score: common tags * 10 + fame_rating - (distance/10)
-        orderBy = `(common_tags * 10 + u.fame_rating - COALESCE(distance, 100)/10) DESC`;
+        orderBy = `(${tagsCountQuery} * 10 + u.fame_rating - COALESCE(${distanceFormula}, 100)/10) DESC`;
         break;
     }
 
@@ -156,13 +162,24 @@ router.get('/browse', async (req, res) => {
 
     const profiles = await queryAll(sql, params);
 
-    // Get total count for pagination
     const countSql = `
       SELECT COUNT(*) as total
       FROM users u
       WHERE ${conditions.join(' AND ')}
     `;
-    const countResult = await queryOne(countSql, params.slice(0, paramCount - 2));
+    let maxParamIndex = 1;
+    const paramRegex = /\$(\d+)/g;
+    conditions.forEach(condition => {
+      let match;
+      while ((match = paramRegex.exec(condition)) !== null) {
+        const index = parseInt(match[1]);
+        if (index > maxParamIndex) maxParamIndex = index;
+      }
+    });
+
+    const countParams = params.slice(0, maxParamIndex);
+    
+    const countResult = await queryOne(countSql, countParams);
 
     // Get tags for each profile
     const profileIds = profiles.map(p => p.id);
@@ -341,7 +358,19 @@ router.get('/search', async (req, res) => {
 
     // Get total count
     const countSql = `SELECT COUNT(*) as total FROM users u WHERE ${conditions.join(' AND ')}`;
-    const countResult = await queryOne(countSql, params.slice(0, paramCount - 2));
+
+    let maxParamIndex = 1;
+    const paramRegex = /\$(\d+)/g;
+    conditions.forEach(condition => {
+      let match;
+      while ((match = paramRegex.exec(condition)) !== null) {
+        const index = parseInt(match[1]);
+        if (index > maxParamIndex) maxParamIndex = index;
+      }
+    });
+
+    const countParams = params.slice(0, maxParamIndex);
+    const countResult = await queryOne(countSql, countParams);
 
     // Get tags
     const profileIds = profiles.map(p => p.id);

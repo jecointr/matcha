@@ -17,10 +17,6 @@ import profileRoutes from './routes/profiles.js';
 import matchRoutes from './routes/matches.js';
 import chatRoutes from './routes/chat.js';
 import notificationRoutes from './routes/notifications.js';
-// import profileRoutes from './routes/profiles.js';
-// import matchRoutes from './routes/matches.js';
-// import chatRoutes from './routes/chat.js';
-// import notificationRoutes from './routes/notifications.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -49,11 +45,21 @@ app.use(cors({
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: { error: 'Too many requests, please try again later.' }
+  windowMs: 15 * 60 * 1000,
+  max: 3000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' },
+  skip: (req) => process.env.NODE_ENV === 'development'
 });
 app.use('/api/', limiter);
+
+const authLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many login attempts, please try again after an hour' }
+});
+app.use('/api/auth/login', authLimiter);
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
@@ -79,10 +85,6 @@ app.use('/api/profiles', profileRoutes);
 app.use('/api/matches', matchRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/notifications', notificationRoutes);
-// app.use('/api/profiles', profileRoutes);
-// app.use('/api/matches', matchRoutes);
-// app.use('/api/chat', chatRoutes);
-// app.use('/api/notifications', notificationRoutes);
 
 // 404 handler
 app.use('/api/*', (req, res) => {
@@ -112,7 +114,6 @@ const PORT = process.env.PORT || 3000;
 
 const startServer = async () => {
   try {
-    // Connect to database
     await connectDB();
     console.log('✅ Database connected');
     
