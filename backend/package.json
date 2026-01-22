@@ -7,7 +7,10 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "seed": "node seeds/generate-profiles.js"
+    "seed": "node seeds/generate-profiles.js",
+    "seed:photos": "node seeds/generate-photos.js",
+    "seed:all": "node seeds/generate-profiles.js && node seeds/generate-photos.js",
+    "security:check": "node seeds/security-check.js"
   },
   "dependencies": {
     "express": "^4.18.2",
