@@ -45,7 +45,7 @@ export const CompleteProfileRoute = ({ children }) => {
   }
 
   if (!isProfileComplete) {
-    return <Navigate to="/complete-profile" replace />;
+    return <Navigate to="/complete-profile" state={{ from: location }} replace />;
   }
 
   return children;

@@ -15,6 +15,8 @@ import VerifyEmail from './pages/VerifyEmail';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import ResendVerification from './pages/ResendVerification';
+import CompleteProfile from './pages/CompleteProfile';
+import Profile from './pages/Profile';
 
 // Placeholder pages (to be implemented in later phases)
 const Home = () => (
@@ -32,20 +34,6 @@ const Browse = () => (
   <div className="card">
     <h2 className="text-2xl font-bold mb-4">Browse Profiles</h2>
     <p className="text-gray-500">Coming in Phase 4</p>
-  </div>
-);
-
-const CompleteProfile = () => (
-  <div className="card max-w-2xl mx-auto">
-    <h2 className="text-2xl font-bold mb-4">Complete Your Profile</h2>
-    <p className="text-gray-500">Coming in Phase 3</p>
-  </div>
-);
-
-const Profile = () => (
-  <div className="card">
-    <h2 className="text-2xl font-bold mb-4">My Profile</h2>
-    <p className="text-gray-500">Coming in Phase 3</p>
   </div>
 );
 
@@ -243,9 +231,9 @@ const AppRoutes = () => {
         <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
 
         {/* Protected routes (requires complete profile) */}
-        <Route path="/browse" element={<PrivateRoute><Browse /></PrivateRoute>} />
-        <Route path="/chat" element={<PrivateRoute><Chat /></PrivateRoute>} />
-        <Route path="/notifications" element={<PrivateRoute><Notifications /></PrivateRoute>} />
+        <Route path="/browse" element={<CompleteProfileRoute><Browse /></CompleteProfileRoute>} />
+        <Route path="/chat" element={<CompleteProfileRoute><Chat /></CompleteProfileRoute>} />
+        <Route path="/notifications" element={<CompleteProfileRoute><Notifications /></CompleteProfileRoute>} />
 
         {/* 404 */}
         <Route path="*" element={<NotFound />} />

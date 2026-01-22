@@ -52,7 +52,7 @@ export const authAPI = {
   getMe: () => api.get('/auth/me')
 };
 
-// User endpoints (for later phases)
+// User endpoints
 export const userAPI = {
   updateProfile: (data) => api.put('/users/profile', data),
   uploadPhoto: (formData) => api.post('/users/photos', formData, {
@@ -60,7 +60,10 @@ export const userAPI = {
   }),
   deletePhoto: (photoId) => api.delete(`/users/photos/${photoId}`),
   setProfilePicture: (photoId) => api.put(`/users/photos/${photoId}/profile`),
-  updateLocation: (data) => api.put('/users/location', data)
+  updateLocation: (data) => api.put('/users/location', data),
+  getTags: () => api.get('/users/tags'),
+  updateTags: (tagIds) => api.put('/users/tags', { tagIds }),
+  createTag: (name) => api.post('/users/tags', { name })
 };
 
 // Profile endpoints (for later phases)
