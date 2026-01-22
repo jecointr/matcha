@@ -21,7 +21,10 @@ export default {
         }
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        // "sans" est la police par défaut de Tailwind. On la remplace par Open Sans.
+        sans: ['"Open Sans"', 'sans-serif'],
+        // On crée une classe utilitaire "font-heading" pour tes titres
+        heading: ['"Montserrat"', 'sans-serif'],
       }
     },
   },
