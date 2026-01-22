@@ -7,8 +7,8 @@ const SocketContext = createContext(null);
 
 export const useSocket = () => {
   const context = useContext(SocketContext);
-  // Return empty context if not within provider (for Header when not authenticated)
   if (!context) {
+    // Fallback safe si utilisé hors du provider
     return {
       socket: null,
       connected: false,
@@ -39,7 +39,7 @@ export const SocketProvider = ({ children }) => {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [notifications, setNotifications] = useState([]);
 
-  // Load initial unread counts
+  // 1. Charger les compteurs initiaux
   useEffect(() => {
     if (!isAuthenticated) return;
 
@@ -59,7 +59,7 @@ export const SocketProvider = ({ children }) => {
     loadCounts();
   }, [isAuthenticated]);
 
-  // Connect to socket when authenticated
+  // 2. Connexion Socket
   useEffect(() => {
     if (!isAuthenticated) {
       if (socket) {
@@ -73,7 +73,8 @@ export const SocketProvider = ({ children }) => {
     const token = localStorage.getItem('token');
     if (!token) return;
 
-    const WS_URL = import.meta.env.VITE_WS_URL || 'http://localhost:3000';
+    // Utilise VITE_API_URL par défaut si VITE_WS_URL n'est pas défini (souvent le même port)
+    const WS_URL = import.meta.env.VITE_WS_URL || import.meta.env.VITE_API_URL || 'http://localhost:3000';
     
     const newSocket = io(WS_URL, {
       auth: { token },
@@ -97,13 +98,12 @@ export const SocketProvider = ({ children }) => {
       console.error('Socket connection error:', error.message);
     });
 
-    // Handle incoming notifications
+    // Gestion centralisée des notifications
     newSocket.on('notification', (notification) => {
       console.log('Received notification:', notification);
       setNotifications(prev => [notification, ...prev]);
       setUnreadNotifications(prev => prev + 1);
       
-      // If it's a message notification, also increment unread messages
       if (notification.type === 'message') {
         setUnreadMessages(prev => prev + 1);
       }
@@ -116,21 +116,20 @@ export const SocketProvider = ({ children }) => {
     };
   }, [isAuthenticated]);
 
-  // Join a chat room
+  // --- ACTIONS ---
+
   const joinChat = useCallback((conversationId) => {
     if (socket && connected) {
       socket.emit('join:chat', conversationId);
     }
   }, [socket, connected]);
 
-  // Leave a chat room
   const leaveChat = useCallback((conversationId) => {
     if (socket && connected) {
       socket.emit('leave:chat', conversationId);
     }
   }, [socket, connected]);
 
-  // Send typing indicator
   const startTyping = useCallback((conversationId) => {
     if (socket && connected) {
       socket.emit('typing:start', { conversationId });
@@ -143,7 +142,8 @@ export const SocketProvider = ({ children }) => {
     }
   }, [socket, connected]);
 
-  // Listen for chat messages
+  // --- LISTENERS ---
+
   const onChatMessage = useCallback((callback) => {
     if (socket) {
       socket.on('chat:message', callback);
@@ -152,20 +152,30 @@ export const SocketProvider = ({ children }) => {
     return () => {};
   }, [socket]);
 
-  // Listen for typing indicators
+  // CORRECTION MAJEURE ICI : Injection du 'type' pour Chat.jsx
   const onTyping = useCallback((callback) => {
-    if (socket) {
-      socket.on('typing:start', callback);
-      socket.on('typing:stop', callback);
-      return () => {
-        socket.off('typing:start', callback);
-        socket.off('typing:stop', callback);
-      };
-    }
-    return () => {};
+    if (!socket) return () => {};
+
+    const handleStart = (data) => {
+      // On ajoute manuellement le type pour que Chat.jsx puisse le lire
+      callback({ ...data, type: 'typing:start' });
+    };
+
+    const handleStop = (data) => {
+      callback({ ...data, type: 'typing:stop' });
+    };
+
+    socket.on('typing:start', handleStart);
+    socket.on('typing:stop', handleStop);
+
+    return () => {
+      socket.off('typing:start', handleStart);
+      socket.off('typing:stop', handleStop);
+    };
   }, [socket]);
 
-  // Clear unread counts
+  // --- STATE MANAGEMENT ---
+
   const clearUnreadMessages = useCallback(() => {
     setUnreadMessages(0);
   }, []);
