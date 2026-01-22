@@ -63,7 +63,8 @@ export const userAPI = {
   updateLocation: (data) => api.put('/users/location', data),
   getTags: () => api.get('/users/tags'),
   updateTags: (tagIds) => api.put('/users/tags', { tagIds }),
-  createTag: (name) => api.post('/users/tags', { name })
+  createTag: (name) => api.post('/users/tags', { name }),
+  deleteAccount: () => api.delete('/users/me')
 };
 
 // Profile endpoints

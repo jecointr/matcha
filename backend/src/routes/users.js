@@ -3,12 +3,15 @@ import { query, queryOne, queryAll, transaction } from '../config/database.js';
 import { authenticate } from '../middlewares/auth.js';
 import { upload, processImage, deleteImage, handleUploadError } from '../middlewares/upload.js';
 import { sanitizeString, isValidEmail, isValidName, sanitizeEmail } from '../utils/validators.js';
+import { deleteAccount } from '../controllers/users.js';
 import xss from 'xss';
 
 const router = Router();
 
 // All routes require authentication
 router.use(authenticate);
+
+router.delete('/me', deleteAccount);
 
 /**
  * PUT /api/users/profile

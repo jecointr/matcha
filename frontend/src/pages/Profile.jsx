@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { userAPI } from '../services/api';
 import { Input, Button, Alert } from '../components/ui/Input';
@@ -13,8 +14,10 @@ import {
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const Profile = () => {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, logout } = useAuth();
   
+  const navigate = useNavigate();
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -150,6 +153,21 @@ const Profile = () => {
       </div>
     );
   }
+
+  const handleDeleteAccount = async () => {
+    if (!window.confirm("Êtes-vous sûr de vouloir supprimer définitivement votre compte ? Cette action est irréversible.")) {
+      return;
+    }
+
+    try {
+      await userAPI.deleteAccount();
+      logout(); // Vide le contexte/localstorage
+      navigate('/login'); // Redirige
+    } catch (err) {
+      console.error(err);
+      setError("Impossible de supprimer le compte.");
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -408,7 +426,10 @@ const Profile = () => {
               <p className="text-sm text-red-700 mb-3">
                 Deleting your account is permanent and cannot be undone.
               </p>
-              <button className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700">
+              <button 
+                onClick={handleDeleteAccount}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700"
+              >
                 Delete Account
               </button>
             </div>
