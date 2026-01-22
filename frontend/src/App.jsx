@@ -1,9 +1,10 @@
 import { Routes, Route, Link, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Heart, Bell, MessageCircle, User, LogOut, Menu, X, Compass } from 'lucide-react';
 
 // Context
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { SocketProvider, useSocket } from './context/SocketContext';
 
 // Route guards
 import { PrivateRoute, GuestRoute, CompleteProfileRoute } from './components/PrivateRoute';
@@ -17,8 +18,15 @@ import ResetPassword from './pages/ResetPassword';
 import ResendVerification from './pages/ResendVerification';
 import CompleteProfile from './pages/CompleteProfile';
 import Profile from './pages/Profile';
+import Browse from './pages/Browse';
+import SearchPage from './pages/SearchPage';
+import UserProfile from './pages/UserProfile';
+import Likes from './pages/Likes';
+import Visitors from './pages/Visitors';
+import Chat from './pages/Chat';
+import Notifications from './pages/Notifications';
 
-// Placeholder pages (to be implemented in later phases)
+// Home page
 const Home = () => (
   <div className="text-center py-20">
     <h1 className="text-4xl font-bold text-gray-900 mb-4">Welcome to Matcha</h1>
@@ -30,27 +38,6 @@ const Home = () => (
   </div>
 );
 
-const Browse = () => (
-  <div className="card">
-    <h2 className="text-2xl font-bold mb-4">Browse Profiles</h2>
-    <p className="text-gray-500">Coming in Phase 4</p>
-  </div>
-);
-
-const Chat = () => (
-  <div className="card">
-    <h2 className="text-2xl font-bold mb-4">Messages</h2>
-    <p className="text-gray-500">Coming in Phase 6</p>
-  </div>
-);
-
-const Notifications = () => (
-  <div className="card">
-    <h2 className="text-2xl font-bold mb-4">Notifications</h2>
-    <p className="text-gray-500">Coming in Phase 6</p>
-  </div>
-);
-
 const NotFound = () => (
   <div className="text-center py-20">
     <h1 className="text-6xl font-bold text-gray-300">404</h1>
@@ -59,11 +46,12 @@ const NotFound = () => (
   </div>
 );
 
-// Header component with auth
+// Header component with auth and notifications
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { isAuthenticated, user, logout } = useAuth();
   const navigate = useNavigate();
+  const { unreadMessages, unreadNotifications } = useSocket();
 
   const handleLogout = async () => {
     await logout();
@@ -90,10 +78,19 @@ const Header = () => {
                 </Link>
                 <Link to="/chat" className="relative text-gray-600 hover:text-gray-900 p-2 rounded-lg hover:bg-gray-100">
                   <MessageCircle className="h-6 w-6" />
-                  {/* Notification badge - will be dynamic later */}
+                  {unreadMessages > 0 && (
+                    <span className="absolute -top-1 -right-1 h-5 w-5 bg-primary-500 rounded-full text-xs text-white flex items-center justify-center">
+                      {unreadMessages > 9 ? '9+' : unreadMessages}
+                    </span>
+                  )}
                 </Link>
                 <Link to="/notifications" className="relative text-gray-600 hover:text-gray-900 p-2 rounded-lg hover:bg-gray-100">
                   <Bell className="h-6 w-6" />
+                  {unreadNotifications > 0 && (
+                    <span className="absolute -top-1 -right-1 h-5 w-5 bg-primary-500 rounded-full text-xs text-white flex items-center justify-center">
+                      {unreadNotifications > 9 ? '9+' : unreadNotifications}
+                    </span>
+                  )}
                 </Link>
                 <Link to="/profile" className="text-gray-600 hover:text-gray-900 p-2 rounded-lg hover:bg-gray-100">
                   <User className="h-6 w-6" />
@@ -134,21 +131,23 @@ const Header = () => {
             <div className="flex flex-col space-y-1">
               {isAuthenticated ? (
                 <>
-                  <Link to="/browse" className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg flex items-center">
+                  <Link to="/browse" className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg flex items-center" onClick={() => setIsMenuOpen(false)}>
                     <Compass className="h-5 w-5 mr-2" /> Browse
                   </Link>
-                  <Link to="/chat" className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg flex items-center">
-                    <MessageCircle className="h-5 w-5 mr-2" /> Messages
+                  <Link to="/chat" className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg flex items-center justify-between" onClick={() => setIsMenuOpen(false)}>
+                    <span className="flex items-center"><MessageCircle className="h-5 w-5 mr-2" /> Messages</span>
+                    {unreadMessages > 0 && <span className="bg-primary-500 text-white text-xs px-2 py-0.5 rounded-full">{unreadMessages}</span>}
                   </Link>
-                  <Link to="/notifications" className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg flex items-center">
-                    <Bell className="h-5 w-5 mr-2" /> Notifications
+                  <Link to="/notifications" className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg flex items-center justify-between" onClick={() => setIsMenuOpen(false)}>
+                    <span className="flex items-center"><Bell className="h-5 w-5 mr-2" /> Notifications</span>
+                    {unreadNotifications > 0 && <span className="bg-primary-500 text-white text-xs px-2 py-0.5 rounded-full">{unreadNotifications}</span>}
                   </Link>
-                  <Link to="/profile" className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg flex items-center">
+                  <Link to="/profile" className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg flex items-center" onClick={() => setIsMenuOpen(false)}>
                     <User className="h-5 w-5 mr-2" /> Profile
                   </Link>
                   <hr className="my-2" />
                   <button
-                    onClick={handleLogout}
+                    onClick={() => { handleLogout(); setIsMenuOpen(false); }}
                     className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg flex items-center w-full text-left"
                   >
                     <LogOut className="h-5 w-5 mr-2" /> Logout
@@ -156,10 +155,10 @@ const Header = () => {
                 </>
               ) : (
                 <>
-                  <Link to="/login" className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">
+                  <Link to="/login" className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg" onClick={() => setIsMenuOpen(false)}>
                     Login
                   </Link>
-                  <Link to="/register" className="px-3 py-2 text-primary-500 hover:bg-primary-50 rounded-lg font-medium">
+                  <Link to="/register" className="px-3 py-2 text-primary-500 hover:bg-primary-50 rounded-lg font-medium" onClick={() => setIsMenuOpen(false)}>
                     Register
                   </Link>
                 </>
@@ -232,6 +231,10 @@ const AppRoutes = () => {
 
         {/* Protected routes (requires complete profile) */}
         <Route path="/browse" element={<CompleteProfileRoute><Browse /></CompleteProfileRoute>} />
+        <Route path="/search" element={<CompleteProfileRoute><SearchPage /></CompleteProfileRoute>} />
+        <Route path="/profile/:userId" element={<CompleteProfileRoute><UserProfile /></CompleteProfileRoute>} />
+        <Route path="/likes" element={<CompleteProfileRoute><Likes /></CompleteProfileRoute>} />
+        <Route path="/visitors" element={<CompleteProfileRoute><Visitors /></CompleteProfileRoute>} />
         <Route path="/chat" element={<CompleteProfileRoute><Chat /></CompleteProfileRoute>} />
         <Route path="/notifications" element={<CompleteProfileRoute><Notifications /></CompleteProfileRoute>} />
 
@@ -246,7 +249,9 @@ const AppRoutes = () => {
 function App() {
   return (
     <AuthProvider>
-      <AppRoutes />
+      <SocketProvider>
+        <AppRoutes />
+      </SocketProvider>
     </AuthProvider>
   );
 }

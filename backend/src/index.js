@@ -13,6 +13,10 @@ import { initializeSocket } from './config/socket.js';
 // Routes
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
+import profileRoutes from './routes/profiles.js';
+import matchRoutes from './routes/matches.js';
+import chatRoutes from './routes/chat.js';
+import notificationRoutes from './routes/notifications.js';
 // import profileRoutes from './routes/profiles.js';
 // import matchRoutes from './routes/matches.js';
 // import chatRoutes from './routes/chat.js';
@@ -71,6 +75,10 @@ app.get('/api/health', async (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/profiles', profileRoutes);
+app.use('/api/matches', matchRoutes);
+app.use('/api/chat', chatRoutes);
+app.use('/api/notifications', notificationRoutes);
 // app.use('/api/profiles', profileRoutes);
 // app.use('/api/matches', matchRoutes);
 // app.use('/api/chat', chatRoutes);

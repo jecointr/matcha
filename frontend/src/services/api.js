@@ -66,7 +66,7 @@ export const userAPI = {
   createTag: (name) => api.post('/users/tags', { name })
 };
 
-// Profile endpoints (for later phases)
+// Profile endpoints
 export const profileAPI = {
   getBrowse: (params) => api.get('/profiles/browse', { params }),
   search: (params) => api.get('/profiles/search', { params }),
@@ -78,25 +78,31 @@ export const profileAPI = {
   report: (userId, reason) => api.post(`/profiles/${userId}/report`, { reason })
 };
 
-// Match endpoints (for later phases)
+// Match endpoints
 export const matchAPI = {
   getMatches: () => api.get('/matches'),
   getLikes: () => api.get('/matches/likes'),
+  getMyLikes: () => api.get('/matches/my-likes'),
   getVisits: () => api.get('/matches/visits')
 };
 
-// Chat endpoints (for later phases)
+// Chat endpoints
 export const chatAPI = {
   getConversations: () => api.get('/chat/conversations'),
+  getConversation: (otherUserId) => api.get(`/chat/conversations/${otherUserId}`),
   getMessages: (conversationId, params) => api.get(`/chat/${conversationId}/messages`, { params }),
-  sendMessage: (conversationId, content) => api.post(`/chat/${conversationId}/messages`, { content })
+  sendMessage: (conversationId, content) => api.post(`/chat/${conversationId}/messages`, { content }),
+  markAsRead: (conversationId) => api.put(`/chat/${conversationId}/read`),
+  getUnreadCount: () => api.get('/chat/unread-count')
 };
 
-// Notification endpoints (for later phases)
+// Notification endpoints
 export const notificationAPI = {
   getNotifications: (params) => api.get('/notifications', { params }),
+  getUnreadCount: () => api.get('/notifications/unread-count'),
   markAsRead: (notificationId) => api.put(`/notifications/${notificationId}/read`),
-  markAllAsRead: () => api.put('/notifications/read-all')
+  markAllAsRead: () => api.put('/notifications/read-all'),
+  delete: (notificationId) => api.delete(`/notifications/${notificationId}`)
 };
 
 // Tags endpoint
