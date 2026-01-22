@@ -10,8 +10,8 @@ import { fileURLToPath } from 'url';
 import { connectDB, testConnection } from './config/database.js';
 import { initializeSocket } from './config/socket.js';
 
-// Routes (à créer dans les prochaines phases)
-// import authRoutes from './routes/auth.js';
+// Routes
+import authRoutes from './routes/auth.js';
 // import userRoutes from './routes/users.js';
 // import profileRoutes from './routes/profiles.js';
 // import matchRoutes from './routes/matches.js';
@@ -68,8 +68,8 @@ app.get('/api/health', async (req, res) => {
   });
 });
 
-// API Routes (à activer progressivement)
-// app.use('/api/auth', authRoutes);
+// API Routes
+app.use('/api/auth', authRoutes);
 // app.use('/api/users', userRoutes);
 // app.use('/api/profiles', profileRoutes);
 // app.use('/api/matches', matchRoutes);

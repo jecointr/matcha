@@ -1,89 +1,188 @@
-import { Routes, Route } from 'react-router-dom'
-import { useState, useEffect } from 'react'
-import { Heart, Bell, MessageCircle, User, LogOut, Menu, X } from 'lucide-react'
+import { Routes, Route, Link, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Heart, Bell, MessageCircle, User, LogOut, Menu, X, Compass } from 'lucide-react';
 
-// Placeholder pages (to be created in next phases)
+// Context
+import { AuthProvider, useAuth } from './context/AuthContext';
+
+// Route guards
+import { PrivateRoute, GuestRoute, CompleteProfileRoute } from './components/PrivateRoute';
+
+// Pages
+import Login from './pages/Login';
+import Register from './pages/Register';
+import VerifyEmail from './pages/VerifyEmail';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import ResendVerification from './pages/ResendVerification';
+
+// Placeholder pages (to be implemented in later phases)
 const Home = () => (
   <div className="text-center py-20">
     <h1 className="text-4xl font-bold text-gray-900 mb-4">Welcome to Matcha</h1>
     <p className="text-xl text-gray-600 mb-8">Find your perfect match</p>
     <div className="space-x-4">
-      <a href="/login" className="btn-primary">Login</a>
-      <a href="/register" className="btn-outline">Register</a>
+      <Link to="/login" className="btn-primary">Login</Link>
+      <Link to="/register" className="btn-outline">Register</Link>
     </div>
   </div>
-)
+);
 
-const Login = () => <div className="card max-w-md mx-auto mt-20"><h2 className="text-2xl font-bold">Login</h2><p className="text-gray-500 mt-2">Coming in Phase 2</p></div>
-const Register = () => <div className="card max-w-md mx-auto mt-20"><h2 className="text-2xl font-bold">Register</h2><p className="text-gray-500 mt-2">Coming in Phase 2</p></div>
-const NotFound = () => <div className="text-center py-20"><h1 className="text-4xl font-bold">404</h1><p className="text-gray-500">Page not found</p></div>
+const Browse = () => (
+  <div className="card">
+    <h2 className="text-2xl font-bold mb-4">Browse Profiles</h2>
+    <p className="text-gray-500">Coming in Phase 4</p>
+  </div>
+);
 
-// Header component
+const CompleteProfile = () => (
+  <div className="card max-w-2xl mx-auto">
+    <h2 className="text-2xl font-bold mb-4">Complete Your Profile</h2>
+    <p className="text-gray-500">Coming in Phase 3</p>
+  </div>
+);
+
+const Profile = () => (
+  <div className="card">
+    <h2 className="text-2xl font-bold mb-4">My Profile</h2>
+    <p className="text-gray-500">Coming in Phase 3</p>
+  </div>
+);
+
+const Chat = () => (
+  <div className="card">
+    <h2 className="text-2xl font-bold mb-4">Messages</h2>
+    <p className="text-gray-500">Coming in Phase 6</p>
+  </div>
+);
+
+const Notifications = () => (
+  <div className="card">
+    <h2 className="text-2xl font-bold mb-4">Notifications</h2>
+    <p className="text-gray-500">Coming in Phase 6</p>
+  </div>
+);
+
+const NotFound = () => (
+  <div className="text-center py-20">
+    <h1 className="text-6xl font-bold text-gray-300">404</h1>
+    <p className="text-xl text-gray-500 mt-4">Page not found</p>
+    <Link to="/" className="btn-primary mt-6 inline-block">Go Home</Link>
+  </div>
+);
+
+// Header component with auth
 const Header = () => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [isLoggedIn] = useState(false) // Will be replaced with auth context
-  
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { isAuthenticated, user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/');
+  };
+
   return (
     <header className="bg-white border-b sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <a href="/" className="flex items-center space-x-2">
+          <Link to={isAuthenticated ? '/browse' : '/'} className="flex items-center space-x-2">
             <Heart className="h-8 w-8 text-primary-500" fill="currentColor" />
             <span className="text-xl font-bold text-gray-900">Matcha</span>
-          </a>
-          
+          </Link>
+
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-4">
-            {isLoggedIn ? (
+          <nav className="hidden md:flex items-center space-x-2">
+            {isAuthenticated ? (
               <>
-                <a href="/browse" className="text-gray-600 hover:text-gray-900 px-3 py-2">Browse</a>
-                <a href="/matches" className="text-gray-600 hover:text-gray-900 px-3 py-2">Matches</a>
-                <a href="/chat" className="relative text-gray-600 hover:text-gray-900 p-2">
+                <Link to="/browse" className="flex items-center text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-100">
+                  <Compass className="h-5 w-5 mr-1" />
+                  Browse
+                </Link>
+                <Link to="/chat" className="relative text-gray-600 hover:text-gray-900 p-2 rounded-lg hover:bg-gray-100">
                   <MessageCircle className="h-6 w-6" />
-                  <span className="absolute top-0 right-0 h-4 w-4 bg-primary-500 rounded-full text-xs text-white flex items-center justify-center">3</span>
-                </a>
-                <a href="/notifications" className="relative text-gray-600 hover:text-gray-900 p-2">
+                  {/* Notification badge - will be dynamic later */}
+                </Link>
+                <Link to="/notifications" className="relative text-gray-600 hover:text-gray-900 p-2 rounded-lg hover:bg-gray-100">
                   <Bell className="h-6 w-6" />
-                  <span className="absolute top-0 right-0 h-4 w-4 bg-primary-500 rounded-full text-xs text-white flex items-center justify-center">5</span>
-                </a>
-                <a href="/profile" className="text-gray-600 hover:text-gray-900 p-2">
+                </Link>
+                <Link to="/profile" className="text-gray-600 hover:text-gray-900 p-2 rounded-lg hover:bg-gray-100">
                   <User className="h-6 w-6" />
-                </a>
-                <button className="text-gray-600 hover:text-gray-900 p-2">
+                </Link>
+                <div className="w-px h-6 bg-gray-200 mx-2" />
+                <button
+                  onClick={handleLogout}
+                  className="text-gray-600 hover:text-gray-900 p-2 rounded-lg hover:bg-gray-100"
+                  title="Logout"
+                >
                   <LogOut className="h-6 w-6" />
                 </button>
               </>
             ) : (
               <>
-                <a href="/login" className="text-gray-600 hover:text-gray-900 px-3 py-2">Login</a>
-                <a href="/register" className="btn-primary">Register</a>
+                <Link to="/login" className="text-gray-600 hover:text-gray-900 px-4 py-2">
+                  Login
+                </Link>
+                <Link to="/register" className="btn-primary">
+                  Register
+                </Link>
               </>
             )}
           </nav>
-          
+
           {/* Mobile menu button */}
-          <button 
-            className="md:hidden p-2"
+          <button
+            className="md:hidden p-2 rounded-lg hover:bg-gray-100"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
           >
             {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
         </div>
-        
+
         {/* Mobile Navigation */}
         {isMenuOpen && (
           <nav className="md:hidden py-4 border-t">
-            <div className="flex flex-col space-y-2">
-              <a href="/login" className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded">Login</a>
-              <a href="/register" className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded">Register</a>
+            <div className="flex flex-col space-y-1">
+              {isAuthenticated ? (
+                <>
+                  <Link to="/browse" className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg flex items-center">
+                    <Compass className="h-5 w-5 mr-2" /> Browse
+                  </Link>
+                  <Link to="/chat" className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg flex items-center">
+                    <MessageCircle className="h-5 w-5 mr-2" /> Messages
+                  </Link>
+                  <Link to="/notifications" className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg flex items-center">
+                    <Bell className="h-5 w-5 mr-2" /> Notifications
+                  </Link>
+                  <Link to="/profile" className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg flex items-center">
+                    <User className="h-5 w-5 mr-2" /> Profile
+                  </Link>
+                  <hr className="my-2" />
+                  <button
+                    onClick={handleLogout}
+                    className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg flex items-center w-full text-left"
+                  >
+                    <LogOut className="h-5 w-5 mr-2" /> Logout
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link to="/login" className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">
+                    Login
+                  </Link>
+                  <Link to="/register" className="px-3 py-2 text-primary-500 hover:bg-primary-50 rounded-lg font-medium">
+                    Register
+                  </Link>
+                </>
+              )}
             </div>
           </nav>
         )}
       </div>
     </header>
-  )
-}
+  );
+};
 
 // Footer component
 const Footer = () => (
@@ -95,10 +194,10 @@ const Footer = () => (
           <span className="font-semibold text-gray-900">Matcha</span>
         </div>
         <div className="flex space-x-6 text-sm text-gray-500">
-          <a href="/about" className="hover:text-gray-900">About</a>
-          <a href="/privacy" className="hover:text-gray-900">Privacy</a>
-          <a href="/terms" className="hover:text-gray-900">Terms</a>
-          <a href="/contact" className="hover:text-gray-900">Contact</a>
+          <a href="#" className="hover:text-gray-900">About</a>
+          <a href="#" className="hover:text-gray-900">Privacy</a>
+          <a href="#" className="hover:text-gray-900">Terms</a>
+          <a href="#" className="hover:text-gray-900">Contact</a>
         </div>
         <p className="text-sm text-gray-500 mt-4 md:mt-0">
           © {new Date().getFullYear()} Matcha. All rights reserved.
@@ -106,45 +205,62 @@ const Footer = () => (
       </div>
     </div>
   </footer>
-)
+);
 
-// Main App
-function App() {
-  const [apiStatus, setApiStatus] = useState(null)
-  
-  useEffect(() => {
-    // Test API connection
-    fetch(`${import.meta.env.VITE_API_URL}/health`)
-      .then(res => res.json())
-      .then(data => setApiStatus(data))
-      .catch(err => setApiStatus({ status: 'error', error: err.message }))
-  }, [])
+// Main layout
+const Layout = ({ children }) => (
+  <div className="min-h-screen flex flex-col">
+    <Header />
+    <main className="flex-1">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {children}
+      </div>
+    </main>
+    <Footer />
+  </div>
+);
 
+// App with routes
+const AppRoutes = () => {
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      
-      <main className="flex-1">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* API Status indicator (dev only) */}
-          {apiStatus && (
-            <div className={`mb-4 p-2 rounded text-sm ${apiStatus.status === 'ok' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-              API: {apiStatus.status} | DB: {apiStatus.database || 'unknown'}
-            </div>
-          )}
-          
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </div>
-      </main>
-      
-      <Footer />
-    </div>
-  )
+    <Layout>
+      <Routes>
+        {/* Public routes */}
+        <Route path="/" element={<Home />} />
+
+        {/* Guest only routes */}
+        <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
+        <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
+        <Route path="/forgot-password" element={<GuestRoute><ForgotPassword /></GuestRoute>} />
+        <Route path="/reset-password" element={<GuestRoute><ResetPassword /></GuestRoute>} />
+
+        {/* Email verification (accessible to all) */}
+        <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/resend-verification" element={<ResendVerification />} />
+
+        {/* Protected routes (requires login) */}
+        <Route path="/complete-profile" element={<PrivateRoute><CompleteProfile /></PrivateRoute>} />
+        <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
+
+        {/* Protected routes (requires complete profile) */}
+        <Route path="/browse" element={<PrivateRoute><Browse /></PrivateRoute>} />
+        <Route path="/chat" element={<PrivateRoute><Chat /></PrivateRoute>} />
+        <Route path="/notifications" element={<PrivateRoute><Notifications /></PrivateRoute>} />
+
+        {/* 404 */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Layout>
+  );
+};
+
+// Main App with providers
+function App() {
+  return (
+    <AuthProvider>
+      <AppRoutes />
+    </AuthProvider>
+  );
 }
 
-export default App
+export default App;
