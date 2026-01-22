@@ -1,0 +1,43 @@
+# Environment variables (CRITICAL - never commit!)
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Build outputs
+dist/
+build/
+*.build/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Uploads (user content)
+uploads/
+!uploads/.gitkeep
+
+# Docker volumes data
+postgres_data/
+
+# Coverage
+coverage/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
