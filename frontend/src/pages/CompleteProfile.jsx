@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { userAPI } from '../services/api';
 import { Button, Alert } from '../components/ui/Input';
-import PhotoUpload from '../components/profile/PhotoUpload';
-import TagSelect from '../components/profile/TagSelect';
-import LocationPicker from '../components/profile/LocationPicker';
+import PhotoUpload from '../components/profiles/PhotoUpload';
+import TagSelect from '../components/profiles/TagSelect';
+import LocationPicker from '../components/profiles/LocationPicker';
 import { User, ChevronRight, ChevronLeft, Check } from 'lucide-react';
 
 const CompleteProfile = () => {
