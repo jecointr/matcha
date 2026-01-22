@@ -64,7 +64,11 @@ const Header = () => {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link to={isAuthenticated ? '/browse' : '/'} className="flex items-center space-x-2">
-            <Heart className="h-8 w-8 text-primary-500" fill="currentColor" />
+            <img
+              src="/logo.png"
+              alt="Logo Matcha"
+              className="h-8 w-8"
+            />
             <span className="text-xl font-bold text-gray-900">Matcha</span>
           </Link>
 
