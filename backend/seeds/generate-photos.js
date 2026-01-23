@@ -1,6 +1,6 @@
 /**
  * Generate placeholder photos for seeded profiles
- * Uses DiceBear API for avatar generation
+ * Uses DiceBear API (v9) with fallback to UI Avatars
  * Run with: docker exec -it matcha_backend node seeds/generate-photos.js
  */
 
@@ -30,16 +30,49 @@ if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
-// Download image from URL
+// Robust download function handling Redirects & Status Codes
 const downloadImage = (url, filepath) => {
   return new Promise((resolve, reject) => {
-    const file = fs.createWriteStream(filepath);
-    https.get(url, (response) => {
+    const request = https.get(url, (response) => {
+      // Handle Redirects (301, 302)
+      if (response.statusCode === 301 || response.statusCode === 302) {
+        if (response.headers.location) {
+          downloadImage(response.headers.location, filepath)
+            .then(resolve)
+            .catch(reject);
+          return;
+        }
+      }
+
+      if (response.statusCode !== 200) {
+        reject(new Error(`Status ${response.statusCode}`));
+        return;
+      }
+
+      const file = fs.createWriteStream(filepath);
       response.pipe(file);
+
       file.on('finish', () => {
         file.close();
-        resolve();
+        // Verify file size > 0
+        try {
+            const stats = fs.statSync(filepath);
+            if (stats.size === 0) {
+                fs.unlinkSync(filepath);
+                reject(new Error('Empty file'));
+            } else {
+                resolve();
+            }
+        } catch (e) {
+            reject(e);
+        }
       });
+
+      file.on('error', (err) => {
+        fs.unlink(filepath, () => {});
+        reject(err);
+      });
+
     }).on('error', (err) => {
       fs.unlink(filepath, () => {});
       reject(err);
@@ -47,28 +80,36 @@ const downloadImage = (url, filepath) => {
   });
 };
 
-// Generate avatar URL using DiceBear (free avatar API)
-const getAvatarUrl = (seed, gender) => {
-  // Using "avataaars" style which looks like cartoon people
+// 1. Primary API: DiceBear (Cartoon Avatars)
+// Utilise des paramètres v9.x VALIDÉS pour éviter l'erreur 400
+const getDiceBearUrl = (seed, gender) => {
   const style = 'avataaars';
-  // Add some randomness based on gender
-  const options = gender === 'male' 
-    ? 'top=shortHair&facialHair=beardLight,beardMajestic,moustacheFancy'
-    : 'top=longHair,straight,curly&facialHair=blank';
+  const safeSeed = encodeURIComponent(seed);
   
-  return `https://api.dicebear.com/7.x/${style}/jpg?seed=${seed}&size=400&${options}`;
+  let url = `https://api.dicebear.com/9.x/${style}/jpg?seed=${safeSeed}&size=400`;
+
+  if (gender === 'male') {
+    // Hommes : Barbe forcée, coupes courtes validées
+    url += '&facialHairProbability=100';
+    url += '&top=shortFlat,shortRound,theCaesar,shortCurly'; 
+  } else {
+    // Femmes : Pas de barbe, coupes longues validées
+    url += '&facialHairProbability=0';
+    url += '&top=straight01,straight02,curvy,longButNotTooLong,bob';
+  }
+  
+  return url;
 };
 
-// Alternative: Use UI Avatars for simple letter-based avatars
-const getSimpleAvatarUrl = (name, background) => {
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=400&background=${background}&color=fff&bold=true`;
+// 2. Fallback API: UI Avatars (Initiales) - Indestructible
+const getFallbackUrl = (name) => {
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=400&background=random&color=fff&bold=true&length=1`;
 };
 
 async function generatePhotos() {
-  console.log('📸 Starting photo generation...\n');
+  console.log('📸 Starting photo generation (Robust Mode)...\n');
 
   try {
-    // Get users without photos
     const usersResult = await pool.query(`
       SELECT u.id, u.username, u.first_name, u.last_name, u.gender
       FROM users u
@@ -80,10 +121,7 @@ async function generatePhotos() {
     const users = usersResult.rows;
     console.log(`Found ${users.length} users without photos\n`);
 
-    if (users.length === 0) {
-      console.log('All users already have photos!');
-      return;
-    }
+    if (users.length === 0) return;
 
     let created = 0;
     let errors = 0;
@@ -93,51 +131,49 @@ async function generatePhotos() {
         const filename = `${user.id}_avatar_${Date.now()}.jpg`;
         const filepath = path.join(UPLOAD_DIR, filename);
         
-        // Generate avatar URL
-        const avatarUrl = getAvatarUrl(user.username, user.gender);
-        
-        // Download the image
-        await downloadImage(avatarUrl, filepath);
+        // TENTATIVE 1 : DiceBear
+        try {
+            const avatarUrl = getDiceBearUrl(user.username, user.gender);
+            await downloadImage(avatarUrl, filepath);
+        } catch (err) {
+            // TENTATIVE 2 : Fallback sur UI Avatars si DiceBear échoue (ex: erreur 400)
+            // console.log(`   ⚠️ DiceBear failed for ${user.username} (${err.message}), using fallback...`);
+            const fallbackUrl = getFallbackUrl(user.first_name || user.username);
+            await downloadImage(fallbackUrl, filepath);
+        }
 
-        // Also create thumbnail (same image for simplicity)
+        // Créer miniature (copie simple)
         const thumbFilename = `thumb_${filename}`;
         const thumbPath = path.join(UPLOAD_DIR, thumbFilename);
-        fs.copyFileSync(filepath, thumbPath);
+        if (fs.existsSync(filepath)) {
+            fs.copyFileSync(filepath, thumbPath);
+        }
 
-        // Insert photo record
+        // DB Insert
         await pool.query(`
           INSERT INTO photos (user_id, filename, is_profile_picture)
           VALUES ($1, $2, true)
         `, [user.id, filename]);
 
         created++;
+        if (created % 50 === 0) console.log(`   ✓ Generated ${created}/${users.length} photos`);
 
-        if (created % 50 === 0) {
-          console.log(`   ✓ Generated ${created}/${users.length} photos`);
-        }
-
-        // Small delay to be nice to the API
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Petit délai pour éviter le rate-limit
+        await new Promise(resolve => setTimeout(resolve, 50));
 
       } catch (err) {
         errors++;
-        if (errors < 5) {
-          console.error(`   ✗ Error for user ${user.id}:`, err.message);
-        }
+        console.error(`   ✗ FATAL Error for user ${user.id}:`, err.message);
       }
     }
 
     console.log('\n' + '='.repeat(50));
-    console.log('📊 PHOTO GENERATION SUMMARY');
-    console.log('='.repeat(50));
     console.log(`✅ Photos created: ${created}`);
-    console.log(`❌ Errors: ${errors}`);
+    console.log(`❌ Failures: ${errors}`);
     console.log('='.repeat(50));
-    console.log('\n🎉 Photo generation completed!\n');
 
   } catch (error) {
-    console.error('❌ Photo generation failed:', error);
-    process.exit(1);
+    console.error('❌ Script failed:', error);
   } finally {
     await pool.end();
   }
