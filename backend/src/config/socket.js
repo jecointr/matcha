@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { query } from './database.js';
+import { query, queryOne } from './database.js';
 
 // Store connected users: Map<userId, Set<socketId>>
 const connectedUsers = new Map();
@@ -116,8 +116,59 @@ export const isUserOnline = (userId) => {
  * @param {string} type - Notification type
  * @param {Object} data - Notification data
  */
-export const sendNotification = (io, userId, type, data) => {
-  io.to(`user:${userId}`).emit('notification', { type, data, timestamp: new Date() });
+export const sendNotification = async (io, userId, type, data) => {
+  try {
+    // 1. Sauvegarder en BDD
+    // On extrait l'ID de l'envoyeur s'il est présent dans data
+    const fromUserId = data.fromUserId || null;
+    
+    // On insère
+    const insertQuery = `
+      INSERT INTO notifications (user_id, type, from_user_id, data)
+      VALUES ($1, $2, $3, $4)
+      RETURNING id, created_at
+    `;
+    
+    // On convertit data en JSON pour la colonne JSONB
+    const result = await queryOne(insertQuery, [
+      userId, 
+      type, 
+      fromUserId, 
+      JSON.stringify(data)
+    ]);
+
+    // 2. Récupérer les infos de l'envoyeur pour l'affichage en temps réel (Avatar, Nom)
+    let fromUser = null;
+    if (fromUserId) {
+      fromUser = await queryOne(`
+        SELECT id, username, first_name, 
+        (SELECT filename FROM photos WHERE user_id = users.id AND is_profile_picture = true LIMIT 1) as profile_picture
+        FROM users WHERE id = $1
+      `, [fromUserId]);
+    }
+
+    // 3. Construire l'objet complet pour le frontend
+    const notificationPayload = {
+      id: result.id,
+      type,
+      fromUser: fromUser ? {
+        id: fromUser.id,
+        username: fromUser.username,
+        firstName: fromUser.first_name,
+        profilePicture: fromUser.profile_picture ? `/uploads/${fromUser.profile_picture}` : null
+      } : null,
+      data,
+      isRead: false,
+      createdAt: result.created_at,
+      message: data.message || 'New notification'
+    };
+
+    // 4. Envoyer le socket
+    io.to(`user:${userId}`).emit('notification', notificationPayload);
+
+  } catch (error) {
+    console.error('Error in sendNotification:', error);
+  }
 };
 
 /**

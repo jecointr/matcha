@@ -10,7 +10,7 @@ import {
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const Notifications = () => {
-  const { clearUnreadNotifications, setUnreadNotifications } = useSocket();
+  const { socket, clearUnreadNotifications, setUnreadNotifications } = useSocket();
   
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -18,7 +18,33 @@ const Notifications = () => {
 
   useEffect(() => {
     loadNotifications();
+    clearUnreadNotifications();
   }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    // Cette fonction se déclenche quand une notif arrive via le socket
+    const handleNewNotification = (newNotification) => {
+      // 1. On l'ajoute tout en haut de la liste
+      setNotifications(prev => [newNotification, ...prev]);
+      
+      // 2. On met à jour le compteur local de la page
+      setUnreadCount(prev => prev + 1);
+
+      // (Optionnel) Si tu veux que la pastille du header reste éteinte 
+      // car tu es DÉJÀ sur la page, tu peux décommenter la ligne dessous :
+      // clearUnreadNotifications(); 
+    };
+
+    // On s'abonne à l'événement
+    socket.on('notification', handleNewNotification);
+
+    // Nettoyage quand on quitte la page (très important pour éviter les doublons)
+    return () => {
+      socket.off('notification', handleNewNotification);
+    };
+  }, [socket, clearUnreadNotifications]);
 
   const loadNotifications = async () => {
     try {
