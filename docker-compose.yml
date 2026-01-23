@@ -47,7 +47,7 @@ services:
     volumes:
       - ./backend/src:/app/src
       - ./backend/seeds:/app/seeds
-      - backend_uploads:/app/uploads
+      - ./backend/uploads:/app/uploads
     ports:
       - "3000:3000"
     depends_on:
@@ -85,6 +85,8 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+    volumes:
+      - ./backend/uploads:/app/uploads:ro
     depends_on:
       - backend
       - frontend
@@ -104,7 +106,6 @@ services:
 
 volumes:
   postgres_data:
-  backend_uploads:
 
 networks:
   matcha_network:
