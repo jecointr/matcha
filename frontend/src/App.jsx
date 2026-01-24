@@ -1,14 +1,11 @@
-import { Routes, Route, Link, useNavigate } from 'react-router-dom';
+import { Routes, Route, Link, useNavigate, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Heart, Bell, MessageCircle, User, LogOut, Menu, X, Compass } from 'lucide-react';
-
 // Context
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider, useSocket } from './context/SocketContext';
-
 // Route guards
 import { PrivateRoute, GuestRoute, CompleteProfileRoute } from './components/PrivateRoute';
-
 // Pages
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -27,7 +24,12 @@ import Chat from './pages/Chat';
 import Notifications from './pages/Notifications';
 
 // Home page
-const Home = () => (
+const Home = () => {
+  const { isAuthenticated } = useAuth();
+  if (isAuthenticated) {
+    return <Navigate to="/browse" replace />;
+  }
+  return (
   <div className="text-center py-20">
     <h1 className="text-4xl font-bold text-gray-900 mb-4">Welcome to Matcha</h1>
     <p className="text-xl text-gray-600 mb-8">Find your perfect match</p>
@@ -37,6 +39,7 @@ const Home = () => (
     </div>
   </div>
 );
+};
 
 const NotFound = () => (
   <div className="text-center py-20">
@@ -223,7 +226,7 @@ const AppRoutes = () => {
         <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
         <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
         <Route path="/forgot-password" element={<GuestRoute><ForgotPassword /></GuestRoute>} />
-        <Route path="/reset-password" element={<GuestRoute><ResetPassword /></GuestRoute>} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         {/* Email verification (accessible to all) */}
         <Route path="/verify-email" element={<VerifyEmail />} />

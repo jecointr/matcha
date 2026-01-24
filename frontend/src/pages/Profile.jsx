@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { userAPI } from '../services/api';
+import { authAPI } from '../services/api';
 import { Input, Button, Alert } from '../components/ui/Input';
 import PhotoUpload from '../components/profiles/PhotoUpload';
 import TagSelect from '../components/profiles/TagSelect';
@@ -414,11 +415,26 @@ const Profile = () => {
             <div className="p-4 bg-gray-50 rounded-lg">
               <h4 className="font-medium text-gray-900 mb-2">Change Password</h4>
               <p className="text-sm text-gray-500 mb-3">
-                To change your password, please use the password reset feature.
+                To change your password, click the button below to receive a reset link by email.
               </p>
-              <a href="/forgot-password" className="btn-secondary inline-block text-sm">
-                Reset Password
-              </a>
+              <Button 
+                  onClick={async () => {
+                    try {
+                      setLoading(true);
+                      // On utilise l'email du profil actuel
+                      await authAPI.forgotPassword(profile.email);
+                      setSuccess(`Reset link sent to ${profile.email}`);
+                    } catch (err) {
+                      setError("Failed to send reset email.");
+                    } finally {
+                      setLoading(false);
+                    }
+                  }} 
+                  variant="secondary" 
+                  className="text-sm"
+                >
+                  Send Reset Email
+                </Button>
             </div>
 
             <div className="p-4 bg-red-50 rounded-lg">
