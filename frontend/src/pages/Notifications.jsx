@@ -15,19 +15,21 @@ const Notifications = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // 1. Initialisation : Chargement + Nettoyage automatique (Mark on Load)
+  // 1. Initialisation : Chargement + Nettoyage automatique
   useEffect(() => {
     const initNotifications = async () => {
       try {
         // A. On charge les notifications depuis la BDD
         const response = await notificationAPI.getNotifications({ limit: 50 });
-        setNotifications(response.data.notifications);
+        
+        // CORRECTION CLIENT : On filtre une dernière fois par sécurité
+        const filteredNotifs = response.data.notifications.filter(n => n.type !== 'message');
+        setNotifications(filteredNotifs);
 
         // B. On éteint immédiatement la pastille rouge du header (UX)
         clearUnreadNotifications();
 
         // C. Si on a des notifs non lues, on dit au serveur de les marquer comme lues
-        // On le fait en arrière-plan (pas de await bloquant pour l'affichage)
         if (response.data.unreadCount > 0) {
           notificationAPI.markAllAsRead()
             .catch(err => console.error('Background auto-read failed:', err));
@@ -41,18 +43,17 @@ const Notifications = () => {
     };
 
     initNotifications();
-  }, []); // [] = Seulement au montage du composant
+  }, []); 
 
   // 2. Gestion du Temps Réel (Socket)
   useEffect(() => {
     if (!socket) return;
 
     const handleNewNotification = (newNotification) => {
-      // On ajoute la nouvelle notif en haut de la liste
-      // Elle arrive avec isRead: false, donc elle sera affichée en bleu
+      // CORRECTION : On ignore les messages qui arrivent pendant qu'on regarde la page
+      if (newNotification.type === 'message') return;
+
       setNotifications(prev => [newNotification, ...prev]);
-      
-      // Note : On ne réactive pas la pastille du header car l'utilisateur est déjà sur la page
     };
 
     socket.on('notification', handleNewNotification);

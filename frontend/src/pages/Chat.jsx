@@ -58,31 +58,63 @@ const Chat = () => {
     }
   }, [activeConversation?.id]);
 
+  // -----------------------------------------------------------------------
+  // LE CŒUR DU PROBLÈME : Listen for new messages
+  // -----------------------------------------------------------------------
   // Listen for new messages
   useEffect(() => {
     const unsubscribe = onChatMessage((message) => {
-      if (activeConversation && message.conversationId === activeConversation.id) {
-        setMessages(prev => [...prev, { ...message, isOwn: message.senderId === user.id }]);
-        scrollToBottom();
-        markAsRead(activeConversation.id);
-      }
-      
-      // Update conversation list
-      setConversations(prev => {
-        const updated = prev.map(c => {
-          if (c.id === message.conversationId) {
-            return {
-              ...c,
-              lastMessage: message.content,
-              lastMessageAt: message.createdAt,
-              unreadCount: message.senderId !== user.id && c.id !== activeConversation?.id 
-                ? c.unreadCount + 1 
-                : c.unreadCount
-            };
-          }
-          return c;
+      console.log("📩 Socket Message reçu sur Chat.jsx:", message);
+
+      if (message.senderId === user.id) return;
+
+      // Stop typing
+      setTypingUsers(prev => {
+        const next = { ...prev };
+        delete next[message.senderId];
+        return next;
+      });
+
+      const msgConvId = Number(message.conversationId || message.conversation_id);
+      const activeConvId = activeConversation ? Number(activeConversation.id) : null;
+
+      // 1. Si on est SUR la conversation active : Ajouter le message + Scroll
+      if (activeConvId === msgConvId) {
+        setMessages(prev => {
+          if (prev.some(m => m.id === message.id)) return prev;
+          return [...prev, { ...message, isOwn: false }];
         });
-        return updated.sort((a, b) => new Date(b.lastMessageAt || b.createdAt) - new Date(a.lastMessageAt || a.createdAt));
+        scrollToBottom();
+        markAsRead(activeConvId);
+      }
+
+      // 2. Mise à jour de la Sidebar (Pour TOUTES les conversations)
+      setConversations(prev => {
+        const index = prev.findIndex(c => Number(c.id) === msgConvId);
+
+        // Si nouvelle conversation (inconnue), on recharge tout par sécurité
+        if (index === -1) {
+          loadConversations();
+          return prev;
+        }
+
+        // On sort la conversation, on la met à jour, on la place en haut
+        const updatedConv = { ...prev[index] };
+        const otherConvs = prev.filter(c => Number(c.id) !== msgConvId);
+
+        updatedConv.lastMessage = message.content;
+        updatedConv.lastMessageAt = message.createdAt || new Date().toISOString();
+
+        // Calcul Pastille Sidebar :
+        // Si on est DÉJÀ sur cette conversation, pastille = 0.
+        // Sinon, on incrémente (ou on met 1 si c'était 0).
+        if (activeConvId === msgConvId) {
+            updatedConv.unreadCount = 0;
+        } else {
+            updatedConv.unreadCount = (updatedConv.unreadCount || 0) + 1;
+        }
+
+        return [updatedConv, ...otherConvs];
       });
     });
 
@@ -142,6 +174,7 @@ const Chat = () => {
   const markAsRead = async (conversationId) => {
     try {
       await chatAPI.markAsRead(conversationId);
+      // Mise à jour locale pour retirer la pastille immédiatement
       setConversations(prev => prev.map(c => 
         c.id === conversationId ? { ...c, unreadCount: 0 } : c
       ));
@@ -161,21 +194,30 @@ const Chat = () => {
 
     try {
       const response = await chatAPI.sendMessage(activeConversation.id, content);
+      
+      // Ajout message local immédiat
       setMessages(prev => [...prev, response.data.message]);
       scrollToBottom();
       
-      // Update conversation list
+      // Mise à jour Sidebar (WhatsApp effect) pour l'envoi aussi
       setConversations(prev => {
-        const updated = prev.map(c => 
-          c.id === activeConversation.id 
-            ? { ...c, lastMessage: content, lastMessageAt: new Date().toISOString() }
-            : c
-        );
-        return updated.sort((a, b) => new Date(b.lastMessageAt || b.createdAt) - new Date(a.lastMessageAt || a.createdAt));
+        const activeId = Number(activeConversation.id);
+        const convIndex = prev.findIndex(c => Number(c.id) === activeId);
+        
+        if (convIndex === -1) return prev;
+
+        const updatedConv = { ...prev[convIndex] };
+        
+        updatedConv.lastMessage = content;
+        updatedConv.lastMessageAt = new Date().toISOString();
+        // Pas de changement de unreadCount car c'est nous qui écrivons
+
+        const otherConvs = prev.filter(c => Number(c.id) !== activeId);
+        return [updatedConv, ...otherConvs];
       });
     } catch (err) {
       console.error('Failed to send message:', err);
-      setNewMessage(content); // Restore message on error
+      setNewMessage(content); 
     } finally {
       setSending(false);
     }
@@ -293,13 +335,13 @@ const Chat = () => {
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-gray-500 truncate">
+                  <p className={`text-sm truncate ${conv.unreadCount > 0 ? 'font-semibold text-gray-900' : 'text-gray-500'}`}>
                     {conv.lastMessage || 'Start a conversation'}
                   </p>
                 </div>
                 
                 {conv.unreadCount > 0 && (
-                  <span className="bg-primary-500 text-white text-xs px-2 py-1 rounded-full">
+                  <span className="bg-primary-500 text-white text-xs font-bold px-2 py-1 rounded-full min-w-[1.25rem] text-center">
                     {conv.unreadCount}
                   </span>
                 )}

@@ -82,18 +82,16 @@ const Header = () => {
                 </Link>
                 <Link to="/chat" className="relative text-gray-600 hover:text-gray-900 p-2 rounded-lg hover:bg-gray-100">
                   <MessageCircle className="h-6 w-6" />
+                  {/* CORRECTION : Pastille simple (Dot) au lieu du chiffre */}
                   {unreadMessages > 0 && (
-                    <span className="absolute -top-1 -right-1 h-5 w-5 bg-primary-500 rounded-full text-xs text-white flex items-center justify-center">
-                      {unreadMessages > 9 ? '9+' : unreadMessages}
-                    </span>
+                    <span className="absolute top-1 right-1 h-2.5 w-2.5 bg-red-500 rounded-full ring-2 ring-white"></span>
                   )}
                 </Link>
                 <Link to="/notifications" className="relative text-gray-600 hover:text-gray-900 p-2 rounded-lg hover:bg-gray-100">
                   <Bell className="h-6 w-6" />
+                  {/* CORRECTION : Pastille simple (Dot) au lieu du chiffre */}
                   {unreadNotifications > 0 && (
-                    <span className="absolute -top-1 -right-1 h-5 w-5 bg-primary-500 rounded-full text-xs text-white flex items-center justify-center">
-                      {unreadNotifications > 9 ? '9+' : unreadNotifications}
-                    </span>
+                    <span className="absolute top-1 right-2 h-2.5 w-2.5 bg-red-500 rounded-full ring-2 ring-white"></span>
                   )}
                 </Link>
                 <Link to="/profile" className="text-gray-600 hover:text-gray-900 p-2 rounded-lg hover:bg-gray-100">
@@ -140,11 +138,13 @@ const Header = () => {
                   </Link>
                   <Link to="/chat" className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg flex items-center justify-between" onClick={() => setIsMenuOpen(false)}>
                     <span className="flex items-center"><MessageCircle className="h-5 w-5 mr-2" /> Messages</span>
-                    {unreadMessages > 0 && <span className="bg-primary-500 text-white text-xs px-2 py-0.5 rounded-full">{unreadMessages}</span>}
+                    {/* CORRECTION Mobile : Pastille simple */}
+                    {unreadMessages > 0 && <span className="h-2.5 w-2.5 bg-red-500 rounded-full"></span>}
                   </Link>
                   <Link to="/notifications" className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg flex items-center justify-between" onClick={() => setIsMenuOpen(false)}>
                     <span className="flex items-center"><Bell className="h-5 w-5 mr-2" /> Notifications</span>
-                    {unreadNotifications > 0 && <span className="bg-primary-500 text-white text-xs px-2 py-0.5 rounded-full">{unreadNotifications}</span>}
+                    {/* CORRECTION Mobile : Pastille simple */}
+                    {unreadNotifications > 0 && <span className="h-2.5 w-2.5 bg-red-500 rounded-full"></span>}
                   </Link>
                   <Link to="/profile" className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg flex items-center" onClick={() => setIsMenuOpen(false)}>
                     <User className="h-5 w-5 mr-2" /> Profile

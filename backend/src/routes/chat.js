@@ -307,6 +307,7 @@ router.post('/:conversationId/messages', async (req, res) => {
     };
 
     sendChatMessage(io, parseInt(conversationId), messageData);
+    io.to(`user:${conversation.other_user_id}`).emit('chat:message', messageData);
 
     // Send notification to other user
     sendNotification(io, conversation.other_user_id, 'message', {

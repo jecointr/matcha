@@ -9,7 +9,7 @@ router.use(requireVerified);
 
 /**
  * GET /api/notifications
- * Get notifications for current user
+ * Get notifications for current user (EXCLUDING messages)
  */
 router.get('/', async (req, res) => {
   try {
@@ -17,7 +17,9 @@ router.get('/', async (req, res) => {
     const { page = 1, limit = 20, unreadOnly = false } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
-    let whereClause = 'WHERE n.user_id = $1';
+    // CORRECTION: On exclut toujours les messages
+    let whereClause = "WHERE n.user_id = $1 AND n.type != 'message'";
+    
     if (unreadOnly === 'true') {
       whereClause += ' AND n.is_read = false';
     }
@@ -40,14 +42,18 @@ router.get('/', async (req, res) => {
       LIMIT $2 OFFSET $3
     `, [userId, parseInt(limit), offset]);
 
-    // Get total count
+    // Get total count (sans messages)
     const countResult = await queryOne(`
       SELECT COUNT(*)::int as total FROM notifications n ${whereClause}
     `, [userId]);
 
-    // Get unread count
+    // Get unread count (sans messages)
     const unreadResult = await queryOne(`
-      SELECT COUNT(*)::int as count FROM notifications WHERE user_id = $1 AND is_read = false
+      SELECT COUNT(*)::int as count 
+      FROM notifications n
+      WHERE n.user_id = $1 
+      AND n.is_read = false 
+      AND n.type != 'message'
     `, [userId]);
 
     res.json({
@@ -82,14 +88,19 @@ router.get('/', async (req, res) => {
 
 /**
  * GET /api/notifications/unread-count
- * Get unread notification count
+ * Get unread notification count (EXCLUDING messages)
  */
 router.get('/unread-count', async (req, res) => {
   try {
     const userId = req.userId;
 
+    // CORRECTION: On exclut les messages du compteur de notifs
     const result = await queryOne(`
-      SELECT COUNT(*)::int as count FROM notifications WHERE user_id = $1 AND is_read = false
+      SELECT COUNT(*)::int as count 
+      FROM notifications 
+      WHERE user_id = $1 
+      AND is_read = false 
+      AND type != 'message'
     `, [userId]);
 
     res.json({ count: result.count });
@@ -130,12 +141,16 @@ router.put('/:notificationId/read', async (req, res) => {
 
 /**
  * PUT /api/notifications/read-all
- * Mark all notifications as read
+ * Mark all notifications as read (Only visible ones, excluding messages implicitly via query if needed, but here we update all by user)
+ * Note: Update all unread notifications for this user is fine, even hidden messages, as they are "read" technically.
  */
 router.put('/read-all', async (req, res) => {
   try {
     const userId = req.userId;
 
+    // On marque TOUT comme lu, même les messages cachés, pour nettoyer la DB
+    // Ou on peut restreindre avec AND type != 'message' si tu veux garder les messages "non lus" en DB
+    // Mais généralement "Mark All Read" nettoie tout.
     await query(`
       UPDATE notifications 
       SET is_read = true 

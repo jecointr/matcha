@@ -8,7 +8,6 @@ const SocketContext = createContext(null);
 export const useSocket = () => {
   const context = useContext(SocketContext);
   if (!context) {
-    // Fallback safe si utilisé hors du provider
     return {
       socket: null,
       connected: false,
@@ -73,7 +72,6 @@ export const SocketProvider = ({ children }) => {
     const token = localStorage.getItem('token');
     if (!token) return;
 
-    // Utilise VITE_API_URL par défaut si VITE_WS_URL n'est pas défini (souvent le même port)
     const WS_URL = import.meta.env.VITE_WS_URL || import.meta.env.VITE_API_URL || 'http://localhost:3000';
     
     const newSocket = io(WS_URL, {
@@ -101,12 +99,26 @@ export const SocketProvider = ({ children }) => {
     // Gestion centralisée des notifications
     newSocket.on('notification', (notification) => {
       console.log('Received notification:', notification);
-      setNotifications(prev => [notification, ...prev]);
-      setUnreadNotifications(prev => prev + 1);
       
+      // CORRECTION : Séparation stricte des flux
       if (notification.type === 'message') {
+        // Si c'est un message : on incrémente UNIQUEMENT le compteur messages
+        // Et on ne l'ajoute PAS à la liste des notifications générales
         setUnreadMessages(prev => prev + 1);
+      } else {
+        // Si c'est autre chose (Like, Visit, Match)
+        // On l'ajoute à la liste ET au compteur notifs
+        setNotifications(prev => [notification, ...prev]);
+        setUnreadNotifications(prev => prev + 1);
       }
+    });
+
+    newSocket.on('chat:message', (message) => {
+      console.log('Global message received:', message);
+      // On n'incrémente pas si c'est nous qui avons envoyé le message
+      // (Note: on ne vérifie pas l'ID ici car on n'a pas accès à 'user' facilement dans le useEffect sans dépendance,
+      // mais le backend n'envoie 'chat:message' dans la room 'user:X' QUE au destinataire, donc c'est safe).
+      setUnreadMessages(prev => prev + 1);
     });
 
     setSocket(newSocket);
@@ -152,12 +164,10 @@ export const SocketProvider = ({ children }) => {
     return () => {};
   }, [socket]);
 
-  // CORRECTION MAJEURE ICI : Injection du 'type' pour Chat.jsx
   const onTyping = useCallback((callback) => {
     if (!socket) return () => {};
 
     const handleStart = (data) => {
-      // On ajoute manuellement le type pour que Chat.jsx puisse le lire
       callback({ ...data, type: 'typing:start' });
     };
 
