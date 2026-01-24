@@ -403,6 +403,55 @@ router.get('/search', async (req, res) => {
 });
 
 /**
+ * GET /api/profiles/map
+ * Get users for interactive map
+ */
+router.get('/map', async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    // 1. Récupérer la position de l'utilisateur actuel pour calculer les distances
+    const currentUser = await queryOne(
+      'SELECT latitude, longitude FROM users WHERE id = $1',
+      [userId]
+    );
+
+    // Fallback à 0,0 si l'utilisateur n'a pas de loc (ne devrait pas arriver si profil complet)
+    const userLat = currentUser?.latitude || 0;
+    const userLon = currentUser?.longitude || 0;
+
+    // 2. Récupérer les utilisateurs géolocalisés
+    // On utilise l'opérateur <@> de earthdistance pour la distance en miles (converti implicitement)
+    // Note: point(longitude, latitude) est l'ordre standard pour PostgreSQL earthdistance
+    const users = await queryAll(`
+      SELECT 
+        u.id, u.username, u.first_name, u.gender,
+        u.latitude, u.longitude, u.fame_rating,
+        (SELECT filename FROM photos WHERE user_id = u.id AND is_profile_picture = true LIMIT 1) as profile_picture,
+        point(u.longitude, u.latitude) <@> point($2, $1) as distance
+      FROM users u
+      WHERE u.id != $3
+        AND u.is_profile_complete = true
+        AND u.latitude IS NOT NULL 
+        AND u.longitude IS NOT NULL
+        AND NOT EXISTS (
+            SELECT 1 FROM blocks b 
+            WHERE (b.blocker_id = $3 AND b.blocked_id = u.id) 
+               OR (b.blocker_id = u.id AND b.blocked_id = $3)
+        )
+      ORDER BY distance ASC
+      LIMIT 200 -- On limite pour ne pas faire laguer la map si trop d'users
+    `, [userLat, userLon, userId]);
+
+    res.json({ users });
+
+  } catch (error) {
+    console.error('Map users error:', error);
+    res.status(500).json({ error: 'Failed to load map users' });
+  }
+});
+
+/**
  * GET /api/profiles/:userId
  * Get a single user profile
  */

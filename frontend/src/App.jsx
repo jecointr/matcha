@@ -1,6 +1,6 @@
 import { Routes, Route, Link, useNavigate, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Heart, Bell, MessageCircle, User, LogOut, Menu, X, Compass } from 'lucide-react';
+import { Heart, Bell, MessageCircle, User, LogOut, Menu, X, Compass, MapPin } from 'lucide-react';
 // Context
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider, useSocket } from './context/SocketContext';
@@ -22,6 +22,7 @@ import Likes from './pages/Likes';
 import Visitors from './pages/Visitors';
 import Chat from './pages/Chat';
 import Notifications from './pages/Notifications';
+import MapPage from './pages/MapPage';
 
 // Home page
 const Home = () => {
@@ -83,6 +84,10 @@ const Header = () => {
                   <Compass className="h-5 w-5 mr-1" />
                   Browse
                 </Link>
+                <Link to="/map" className="flex items-center text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-100">
+                  <MapPin className="h-5 w-5 mr-1" />
+                  Map
+                </Link>
                 <Link to="/chat" className="relative text-gray-600 hover:text-gray-900 p-2 rounded-lg hover:bg-gray-100">
                   <MessageCircle className="h-6 w-6" />
                   {/* CORRECTION : Pastille simple (Dot) au lieu du chiffre */}
@@ -138,6 +143,9 @@ const Header = () => {
                 <>
                   <Link to="/browse" className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg flex items-center" onClick={() => setIsMenuOpen(false)}>
                     <Compass className="h-5 w-5 mr-2" /> Browse
+                  </Link>
+                  <Link to="/map" className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg flex items-center" onClick={() => setIsMenuOpen(false)}>
+                    <MapPin className="h-5 w-5 mr-2" /> Map
                   </Link>
                   <Link to="/chat" className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg flex items-center justify-between" onClick={() => setIsMenuOpen(false)}>
                     <span className="flex items-center"><MessageCircle className="h-5 w-5 mr-2" /> Messages</span>
@@ -244,6 +252,7 @@ const AppRoutes = () => {
         <Route path="/visitors" element={<CompleteProfileRoute><Visitors /></CompleteProfileRoute>} />
         <Route path="/chat" element={<CompleteProfileRoute><Chat /></CompleteProfileRoute>} />
         <Route path="/notifications" element={<CompleteProfileRoute><Notifications /></CompleteProfileRoute>} />
+        <Route path="/map" element={<CompleteProfileRoute><MapPage /></CompleteProfileRoute>} />
 
         {/* 404 */}
         <Route path="*" element={<NotFound />} />

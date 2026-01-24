@@ -71,6 +71,7 @@ export const userAPI = {
 export const profileAPI = {
   getBrowse: (params) => api.get('/profiles/browse', { params }),
   search: (params) => api.get('/profiles/search', { params }),
+  getMapUsers: () => api.get('/profiles/map'),
   getProfile: (userId) => api.get(`/profiles/${userId}`),
   like: (userId) => api.post(`/profiles/${userId}/like`),
   unlike: (userId) => api.delete(`/profiles/${userId}/like`),
