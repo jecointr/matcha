@@ -28,22 +28,11 @@ services:
       dockerfile: Dockerfile
     container_name: matcha_backend
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
-      NODE_ENV: ${NODE_ENV}
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${DB_NAME}
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
-      MAIL_HOST: ${MAIL_HOST}
-      MAIL_PORT: ${MAIL_PORT}
-      MAIL_USER: ${MAIL_USER}
-      MAIL_PASSWORD: ${MAIL_PASSWORD}
-      MAIL_FROM: ${MAIL_FROM}
-      FRONTEND_URL: ${FRONTEND_URL}
-      BACKEND_URL: ${BACKEND_URL}
+      - DB_HOST=db
+      - DB_PORT=5432
     volumes:
       - ./backend/src:/app/src
       - ./backend/seeds:/app/seeds

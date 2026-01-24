@@ -13,6 +13,7 @@ import {
   sanitizeUsername,
   sanitizeString
 } from '../utils/validators.js';
+import passport from 'passport';
 
 const router = Router();
 
@@ -422,5 +423,60 @@ router.get('/me', authenticate, async (req, res) => {
     res.status(500).json({ error: 'Failed to get user data' });
   }
 });
+// --- OAUTH ROUTES ---
 
+// 1. Déclencheur Google
+router.get('/google', passport.authenticate('google', { 
+  scope: ['profile', 'email'],
+  session: false 
+}));
+
+// 2. Callback Google
+router.get('/google/callback', 
+  passport.authenticate('google', { session: false, failureRedirect: '/login?error=auth_failed' }),
+  async (req, res) => {
+    handleOAuthSuccess(req, res);
+  }
+);
+
+// 3. Déclencheur GitHub
+router.get('/github', passport.authenticate('github', { 
+  scope: ['user:email'],
+  session: false 
+}));
+
+// 4. Callback GitHub
+router.get('/github/callback', 
+  passport.authenticate('github', { session: false, failureRedirect: '/login?error=auth_failed' }),
+  async (req, res) => {
+    handleOAuthSuccess(req, res);
+  }
+);
+
+// Helper pour gérer le succès et rediriger vers le front
+const handleOAuthSuccess = async (req, res) => {
+  try {
+    const user = req.user;
+    
+    // Mettre à jour le statut en ligne
+    await query(
+      'UPDATE users SET is_online = true, last_seen = CURRENT_TIMESTAMP WHERE id = $1',
+      [user.id]
+    );
+
+    // Générer le token JWT
+    const token = generateToken(user);
+
+    // Rediriger vers le frontend avec le token en paramètre URL
+    // Note: En prod, utilise une variable d'env pour l'URL du front
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    
+    // On redirige vers la page de login qui va extraire le token
+    res.redirect(`${frontendUrl}/login?token=${token}`);
+    
+  } catch (error) {
+    console.error('OAuth Success Error:', error);
+    res.redirect(`${process.env.FRONTEND_URL}/login?error=server_error`);
+  }
+};
 export default router;

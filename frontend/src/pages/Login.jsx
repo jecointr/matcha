@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Input, Button, Alert } from '../components/ui/Input';
@@ -17,6 +17,22 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showResend, setShowResend] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const token = params.get('token');
+    const urlError = params.get('error');
+
+    if (token) {
+      localStorage.setItem('token', token);
+      // Redirection forcée pour recharger le contexte utilisateur
+      window.location.href = '/browse'; 
+    }
+
+    if (urlError) {
+      setError('Authentication failed via provider.');
+    }
+  }, [location]);
 
   // Check for success message from email verification
   const successMessage = location.state?.message;
@@ -74,6 +90,34 @@ const Login = () => {
             )}
           </Alert>
         )}
+
+        {/* --- Section OAuth --- */}
+        <div className="space-y-3 mb-6">
+          <a
+            href="http://localhost:3000/api/auth/google"
+            className="flex items-center justify-center w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+          >
+            <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="h-5 w-5 mr-2" />
+            Continue with Google
+          </a>
+          
+          <a
+            href="http://localhost:3000/api/auth/github"
+            className="flex items-center justify-center w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+          >
+             <img src="https://www.svgrepo.com/show/512317/github-142.svg" alt="GitHub" className="h-5 w-5 mr-2" />
+            Continue with GitHub
+          </a>
+        </div>
+
+        <div className="relative mb-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-300"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-white text-gray-500">Or continue with email</span>
+          </div>
+        </div>
 
         <form onSubmit={handleSubmit}>
           <Input

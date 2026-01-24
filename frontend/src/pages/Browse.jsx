@@ -137,7 +137,7 @@ const Browse = () => {
 
       {/* Match alert */}
       {matchAlert && (
-        <div className="mb-6 p-4 bg-gradient-to-r from-primary-500 to-pink-500 text-white rounded-lg animate-fade-in">
+        <div className="mb-6 p-4 bg-linear-to-r from-primary-500 to-pink-500 text-white rounded-lg animate-fade-in">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="text-3xl">🎉</div>
