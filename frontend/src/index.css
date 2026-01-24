@@ -1,38 +1,64 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-/* Custom base styles */
+/* === Configuration du Thème === */
+@theme {
+  /* Polices */
+  --font-sans: "Open Sans", sans-serif;
+  --font-heading: "Montserrat", sans-serif;
+
+  /* Couleurs Primary */
+  --color-primary-50: #fdf2f8;
+  --color-primary-100: #fce7f3;
+  --color-primary-200: #fbcfe8;
+  --color-primary-300: #f9a8d4;
+  --color-primary-400: #f472b6;
+  --color-primary-500: #ec4899;
+  --color-primary-600: #db2777;
+  --color-primary-700: #be185d;
+  --color-primary-800: #9d174d;
+  --color-primary-900: #831843;
+
+  /* Animation custom */
+  --animate-fade-in: fadeIn 0.3s ease-in-out;
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+
+/* === Styles de Base === */
 @layer base {
   body {
     @apply bg-gray-50 text-gray-900 antialiased font-sans;
   }
-
   h1, h2, h3, h4, h5, h6 {
     @apply font-heading font-bold text-gray-900;
   }
-  
   * {
     @apply border-gray-200;
   }
 }
 
-/* Custom component styles */
+/* === Composants === */
 @layer components {
-  .btn {
+  /* CORRECTION ICI : On regroupe les sélecteurs au lieu de faire @apply btn */
+  .btn, 
+  .btn-primary, 
+  .btn-secondary, 
+  .btn-outline {
     @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
   }
   
   .btn-primary {
-    @apply btn bg-primary-500 text-white hover:bg-primary-600 focus:ring-primary-500;
+    @apply bg-primary-500 text-white hover:bg-primary-600 focus:ring-primary-500;
   }
   
   .btn-secondary {
-    @apply btn bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-500;
+    @apply bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-500;
   }
   
   .btn-outline {
-    @apply btn border-2 border-primary-500 text-primary-500 hover:bg-primary-50 focus:ring-primary-500;
+    @apply border-2 border-primary-500 text-primary-500 hover:bg-primary-50 focus:ring-primary-500;
   }
   
   .input {
@@ -43,23 +69,13 @@
     @apply bg-white rounded-xl shadow-sm border p-6;
   }
   
-  .badge {
+  /* MÊME CORRECTION pour les badges */
+  .badge, 
+  .badge-primary {
     @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
   }
   
   .badge-primary {
-    @apply badge bg-primary-100 text-primary-800;
-  }
-}
-
-/* Animations */
-@layer utilities {
-  .animate-fade-in {
-    animation: fadeIn 0.3s ease-in-out;
-  }
-  
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    @apply bg-primary-100 text-primary-800;
   }
 }

@@ -87,7 +87,7 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/notifications', notificationRoutes);
 
 // 404 handler
-app.use('/api/*', (req, res) => {
+app.use('/api', (req, res) => {
   res.status(404).json({ error: 'Endpoint not found' });
 });
 
