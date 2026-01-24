@@ -9,6 +9,9 @@ const Login = () => {
   const location = useLocation();
   const { login } = useAuth();
   
+  // Utiliser l'URL de l'API depuis l'environnement (ou fallback)
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+  
   const [formData, setFormData] = useState({
     username: '',
     password: ''
@@ -24,8 +27,11 @@ const Login = () => {
     const urlError = params.get('error');
 
     if (token) {
+      // 1. Stocker le token
       localStorage.setItem('token', token);
-      // Redirection forcée pour recharger le contexte utilisateur
+      
+      // 2. Force reload pour réinitialiser l'AuthContext et charger le User
+      // C'est une méthode brutale mais efficace pour éviter les problèmes de synchro
       window.location.href = '/browse'; 
     }
 
@@ -91,10 +97,10 @@ const Login = () => {
           </Alert>
         )}
 
-        {/* --- Section OAuth --- */}
+        {/* --- Section OAuth Manuel (Sans Passport) --- */}
         <div className="space-y-3 mb-6">
           <a
-            href="http://localhost:3000/api/auth/google"
+            href={`${API_URL}/auth/google`}
             className="flex items-center justify-center w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
           >
             <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="h-5 w-5 mr-2" />
@@ -102,7 +108,7 @@ const Login = () => {
           </a>
           
           <a
-            href="http://localhost:3000/api/auth/github"
+            href={`${API_URL}/auth/github`}
             className="flex items-center justify-center w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
           >
              <img src="https://www.svgrepo.com/show/512317/github-142.svg" alt="GitHub" className="h-5 w-5 mr-2" />

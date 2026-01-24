@@ -23,6 +23,7 @@ import Visitors from './pages/Visitors';
 import Chat from './pages/Chat';
 import Notifications from './pages/Notifications';
 import MapPage from './pages/MapPage';
+import { CallProvider } from './context/CallContext';
 
 // Home page
 const Home = () => {
@@ -266,7 +267,9 @@ function App() {
   return (
     <AuthProvider>
       <SocketProvider>
-        <AppRoutes />
+        <CallProvider>
+          <AppRoutes />
+        </CallProvider>
       </SocketProvider>
     </AuthProvider>
   );

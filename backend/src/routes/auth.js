@@ -4,6 +4,12 @@ import { hashPassword, verifyPassword } from '../lib/password.js';
 import { generateToken, generateRandomToken, getTokenExpiry } from '../lib/jwt.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../lib/mailer.js';
 import { authenticate } from '../middlewares/auth.js';
+// Imports pour l'OAuth Manuel
+import { 
+  getGoogleAuthURL, getGoogleUser, 
+  getGithubAuthURL, getGithubUser, 
+  handleOAuthUser 
+} from '../lib/oauth.js';
 import {
   validateRegistration,
   validateLogin,
@@ -13,7 +19,6 @@ import {
   sanitizeUsername,
   sanitizeString
 } from '../utils/validators.js';
-import passport from 'passport';
 
 const router = Router();
 
@@ -423,60 +428,69 @@ router.get('/me', authenticate, async (req, res) => {
     res.status(500).json({ error: 'Failed to get user data' });
   }
 });
-// --- OAUTH ROUTES ---
 
-// 1. Déclencheur Google
-router.get('/google', passport.authenticate('google', { 
-  scope: ['profile', 'email'],
-  session: false 
-}));
+// --- OAUTH ROUTES (VERSION MANUELLE) ---
 
-// 2. Callback Google
-router.get('/google/callback', 
-  passport.authenticate('google', { session: false, failureRedirect: '/login?error=auth_failed' }),
-  async (req, res) => {
-    handleOAuthSuccess(req, res);
-  }
-);
+// 1. Google Login
+router.get('/google', (req, res) => {
+  // Redirection manuelle vers l'URL Google construite dans lib/oauth.js
+  res.redirect(getGoogleAuthURL());
+});
 
-// 3. Déclencheur GitHub
-router.get('/github', passport.authenticate('github', { 
-  scope: ['user:email'],
-  session: false 
-}));
-
-// 4. Callback GitHub
-router.get('/github/callback', 
-  passport.authenticate('github', { session: false, failureRedirect: '/login?error=auth_failed' }),
-  async (req, res) => {
-    handleOAuthSuccess(req, res);
-  }
-);
-
-// Helper pour gérer le succès et rediriger vers le front
-const handleOAuthSuccess = async (req, res) => {
+// 2. Google Callback
+router.get('/google/callback', async (req, res) => {
   try {
-    const user = req.user;
+    const code = req.query.code;
+    if (!code) throw new Error('No code provided');
+
+    // Récupération manuelle des infos Google
+    const googleProfile = await getGoogleUser(code);
     
+    // Logique métier (création/lien en base)
+    const user = await handleOAuthUser('google', googleProfile);
+
+    // Connexion réussie : Token + Redirect
+    handleOAuthSuccess(user, res);
+  } catch (error) {
+    console.error('Google Auth Error:', error.message);
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?error=auth_failed`);
+  }
+});
+
+// 3. GitHub Login
+router.get('/github', (req, res) => {
+  // Redirection manuelle vers l'URL GitHub
+  res.redirect(getGithubAuthURL());
+});
+
+// 4. GitHub Callback
+router.get('/github/callback', async (req, res) => {
+  try {
+    const code = req.query.code;
+    if (!code) throw new Error('No code provided');
+
+    const githubProfile = await getGithubUser(code);
+    const user = await handleOAuthUser('github', githubProfile);
+
+    handleOAuthSuccess(user, res);
+  } catch (error) {
+    console.error('GitHub Auth Error:', error.message);
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?error=auth_failed`);
+  }
+});
+
+// Helper pour finaliser la connexion OAuth
+const handleOAuthSuccess = async (user, res) => {
     // Mettre à jour le statut en ligne
     await query(
       'UPDATE users SET is_online = true, last_seen = CURRENT_TIMESTAMP WHERE id = $1',
       [user.id]
     );
 
-    // Générer le token JWT
     const token = generateToken(user);
-
-    // Rediriger vers le frontend avec le token en paramètre URL
-    // Note: En prod, utilise une variable d'env pour l'URL du front
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     
-    // On redirige vers la page de login qui va extraire le token
     res.redirect(`${frontendUrl}/login?token=${token}`);
-    
-  } catch (error) {
-    console.error('OAuth Success Error:', error);
-    res.redirect(`${process.env.FRONTEND_URL}/login?error=server_error`);
-  }
 };
+
 export default router;

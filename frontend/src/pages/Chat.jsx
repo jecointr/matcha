@@ -6,9 +6,12 @@ import { useAuth } from '../context/AuthContext';
 import { 
   Send, Loader, MessageCircle, Circle, ArrowLeft, 
   ChevronLeft, User, Check, CheckCheck, Calendar,
-  MapPin, Clock
+  MapPin, Clock, Video, Phone
 } from 'lucide-react';
 import EventModal from '../components/chat/EventModal';
+import VideoCallModal from '../components/chat/VideoCallModal';
+import { useCall } from '../context/CallContext';
+
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -17,6 +20,9 @@ const Chat = () => {
   const { user } = useAuth();
   const { joinChat, leaveChat, onChatMessage, startTyping, stopTyping, onTyping, clearUnreadMessages } = useSocket();
   
+  // Récupération de la fonction d'appel
+  const { callUser } = useCall();
+
   const [conversations, setConversations] = useState([]);
   const [activeConversation, setActiveConversation] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -112,9 +118,6 @@ const Chat = () => {
     }
   }, [activeConversation?.id]);
 
-  // -----------------------------------------------------------------------
-  // LE CŒUR DU PROBLÈME : Listen for new messages
-  // -----------------------------------------------------------------------
   // Listen for new messages
   useEffect(() => {
     const unsubscribe = onChatMessage((message) => {
@@ -159,9 +162,6 @@ const Chat = () => {
         updatedConv.lastMessage = message.content;
         updatedConv.lastMessageAt = message.createdAt || new Date().toISOString();
 
-        // Calcul Pastille Sidebar :
-        // Si on est DÉJÀ sur cette conversation, pastille = 0.
-        // Sinon, on incrémente (ou on met 1 si c'était 0).
         if (activeConvId === msgConvId) {
             updatedConv.unreadCount = 0;
         } else {
@@ -228,7 +228,6 @@ const Chat = () => {
   const markAsRead = async (conversationId) => {
     try {
       await chatAPI.markAsRead(conversationId);
-      // Mise à jour locale pour retirer la pastille immédiatement
       setConversations(prev => prev.map(c => 
         c.id === conversationId ? { ...c, unreadCount: 0 } : c
       ));
@@ -249,11 +248,9 @@ const Chat = () => {
     try {
       const response = await chatAPI.sendMessage(activeConversation.id, content);
       
-      // Ajout message local immédiat
       setMessages(prev => [...prev, response.data.message]);
       scrollToBottom();
       
-      // Mise à jour Sidebar (WhatsApp effect) pour l'envoi aussi
       setConversations(prev => {
         const activeId = Number(activeConversation.id);
         const convIndex = prev.findIndex(c => Number(c.id) === activeId);
@@ -261,10 +258,8 @@ const Chat = () => {
         if (convIndex === -1) return prev;
 
         const updatedConv = { ...prev[convIndex] };
-        
         updatedConv.lastMessage = content;
         updatedConv.lastMessageAt = new Date().toISOString();
-        // Pas de changement de unreadCount car c'est nous qui écrivons
 
         const otherConvs = prev.filter(c => Number(c.id) !== activeId);
         return [updatedConv, ...otherConvs];
@@ -447,66 +442,83 @@ const Chat = () => {
                   </p>
                 </div>
               </Link>
+              
+              {/* === BOUTONS APPEL AJOUTÉS ICI === */}
+              <button 
+                onClick={() => callUser(activeConversation.otherUser.id, false)} // false = pas de vidéo
+                className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-full transition-all duration-200"
+                title="Start Audio Call"
+              >
+                <Phone className="w-5 h-5" />
+              </button>
+              {/* === BOUTON VIDEO AJOUTÉ ICI === */}
+              <button 
+                onClick={() => callUser(activeConversation.otherUser.id, true)}
+                className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-full transition-all duration-200"
+                title="Start Video Call"
+              >
+                <Video className="w-6 h-6" />
+              </button>
+              {/* ============================== */}
             </div>
 
-            {/* Events Banner - Afficher le prochain event s'il existe */}
-              {events.length > 0 && (
-                <div className="bg-primary-50 border-b p-3">
-                  {events.map(evt => (
-                    <div key={evt.id} className="bg-white p-3 rounded-lg shadow-sm border border-primary-100 flex justify-between items-center mb-2 last:mb-0">
-                      <div className="flex gap-3">
-                          <div className="bg-primary-100 p-2 rounded-lg flex flex-col items-center justify-center min-w-14 text-primary-700">
-                            <span className="text-xs font-bold uppercase">{new Date(evt.event_date).toLocaleString('default', { month: 'short' })}</span>
-                            <span className="text-lg font-bold">{new Date(evt.event_date).getDate()}</span>
+            {/* Events Banner */}
+            {events.length > 0 && (
+              <div className="bg-primary-50 border-b p-3">
+                {events.map(evt => (
+                  <div key={evt.id} className="bg-white p-3 rounded-lg shadow-sm border border-primary-100 flex justify-between items-center mb-2 last:mb-0">
+                    <div className="flex gap-3">
+                        <div className="bg-primary-100 p-2 rounded-lg flex flex-col items-center justify-center min-w-14 text-primary-700">
+                          <span className="text-xs font-bold uppercase">{new Date(evt.event_date).toLocaleString('default', { month: 'short' })}</span>
+                          <span className="text-lg font-bold">{new Date(evt.event_date).getDate()}</span>
+                        </div>
+                        <div>
+                          <div className="font-semibold text-gray-900 flex items-center gap-2">
+                            {evt.location}
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${
+                              evt.status === 'accepted' ? 'bg-green-100 text-green-700' : 
+                              evt.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100'
+                            }`}>
+                              {evt.status}
+                            </span>
                           </div>
-                          <div>
-                            <div className="font-semibold text-gray-900 flex items-center gap-2">
-                              {evt.location}
-                              <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                evt.status === 'accepted' ? 'bg-green-100 text-green-700' : 
-                                evt.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100'
-                              }`}>
-                                {evt.status}
-                              </span>
-                            </div>
-                            <p className="text-sm text-gray-600 flex items-center gap-1">
-                              <Clock className="w-3 h-3" /> {new Date(evt.event_date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                              {evt.description && <span className="text-gray-400 mx-1">• {evt.description}</span>}
-                            </p>
-                          </div>
-                      </div>
-
-                      {/* Actions Buttons */}
-                      <div className="flex gap-2">
-                        {evt.status === 'pending' && evt.target_id === user.id && (
-                          <>
-                            <button 
-                              onClick={() => handleEventStatus(evt.id, 'accepted')}
-                              className="btn-primary text-xs px-3 py-1"
-                            >
-                              Accept
-                            </button>
-                            <button 
-                              onClick={() => handleEventStatus(evt.id, 'declined')}
-                              className="bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-xs px-3 py-1 transition"
-                            >
-                              Decline
-                            </button>
-                          </>
-                        )}
-                        {evt.status === 'pending' && evt.creator_id === user.id && (
-                          <button 
-                              onClick={() => handleEventStatus(evt.id, 'cancelled')}
-                              className="text-gray-400 hover:text-red-500 text-xs px-2"
-                          >
-                            Cancel
-                          </button>
-                        )}
-                      </div>
+                          <p className="text-sm text-gray-600 flex items-center gap-1">
+                            <Clock className="w-3 h-3" /> {new Date(evt.event_date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            {evt.description && <span className="text-gray-400 mx-1">• {evt.description}</span>}
+                          </p>
+                        </div>
                     </div>
-                  ))}
-                </div>
-              )}
+
+                    <div className="flex gap-2">
+                      {evt.status === 'pending' && evt.target_id === user.id && (
+                        <>
+                          <button 
+                            onClick={() => handleEventStatus(evt.id, 'accepted')}
+                            className="btn-primary text-xs px-3 py-1"
+                          >
+                            Accept
+                          </button>
+                          <button 
+                            onClick={() => handleEventStatus(evt.id, 'declined')}
+                            className="bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-xs px-3 py-1 transition"
+                          >
+                            Decline
+                          </button>
+                        </>
+                      )}
+                      {evt.status === 'pending' && evt.creator_id === user.id && (
+                        <button 
+                            onClick={() => handleEventStatus(evt.id, 'cancelled')}
+                            className="text-gray-400 hover:text-red-500 text-xs px-2"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Messages */}
             <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -618,6 +630,11 @@ const Chat = () => {
         onSubmit={handleCreateEvent}
         loading={creatingEvent}
       />
+      
+      {/* === MODALE AJOUTÉE ICI === */}
+      <VideoCallModal />
+      {/* ========================== */}
+      
     </div>
   );
 };

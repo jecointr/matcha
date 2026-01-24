@@ -40,7 +40,9 @@ export const initializeSocket = (io) => {
     await updateUserOnlineStatus(userId, true);
 
     // Join user's personal room for notifications
+    // AJOUT LOG DEBUG
     socket.join(`user:${userId}`);
+    console.log(`✅ Socket ${socket.id} joined room user:${userId}`);
 
     // Handle disconnection
     socket.on('disconnect', async () => {
@@ -83,6 +85,43 @@ export const initializeSocket = (io) => {
         conversationId: data.conversationId
       });
     });
+
+    // --- WEBRTC SIGNALING (VIDEO/AUDIO) - DEBUG VERSION ---
+    
+    // 1. Initier un appel
+    socket.on("call:user", ({ userToCall, signalData, fromUser, callType }) => {
+      console.log(`📡 DEBUG BACKEND: Appel demandé de ${fromUser.id} vers ${userToCall}`);
+      
+      const targetRoom = `user:${userToCall}`;
+      const roomSize = io.sockets.adapter.rooms.get(targetRoom)?.size || 0;
+
+      console.log(`🔍 DEBUG BACKEND: La room '${targetRoom}' contient ${roomSize} socket(s)`);
+
+      if (roomSize === 0) {
+        console.log("⚠️ DEBUG BACKEND: L'utilisateur cible n'est pas connecté au socket (room vide) !");
+      }
+
+      // On envoie l'offre à la room personnelle de l'utilisateur cible
+      io.to(targetRoom).emit("call:incoming", { 
+        signal: signalData, 
+        from: fromUser,
+        callType
+      });
+      console.log("✅ DEBUG BACKEND: Signal 'call:incoming' envoyé !");
+    });
+
+    // 2. Accepter un appel
+    socket.on("call:answer", (data) => {
+      console.log(`📡 DEBUG BACKEND: Appel accepté par ${userId} pour ${data.to}`);
+      // On renvoie la réponse à l'appelant
+      io.to(`user:${data.to}`).emit("call:accepted", data.signal);
+    });
+    
+    // 3. Raccrocher / Refuser
+    socket.on("call:end", ({ to }) => {
+       console.log(`📡 DEBUG BACKEND: Appel terminé par ${userId}`);
+       io.to(`user:${to}`).emit("call:ended");
+    });
   });
 };
 
@@ -119,17 +158,14 @@ export const isUserOnline = (userId) => {
 export const sendNotification = async (io, userId, type, data) => {
   try {
     // 1. Sauvegarder en BDD
-    // On extrait l'ID de l'envoyeur s'il est présent dans data
     const fromUserId = data.fromUserId || null;
     
-    // On insère
     const insertQuery = `
       INSERT INTO notifications (user_id, type, from_user_id, data)
       VALUES ($1, $2, $3, $4)
       RETURNING id, created_at
     `;
     
-    // On convertit data en JSON pour la colonne JSONB
     const result = await queryOne(insertQuery, [
       userId, 
       type, 
@@ -137,7 +173,7 @@ export const sendNotification = async (io, userId, type, data) => {
       JSON.stringify(data)
     ]);
 
-    // 2. Récupérer les infos de l'envoyeur pour l'affichage en temps réel (Avatar, Nom)
+    // 2. Récupérer les infos de l'envoyeur
     let fromUser = null;
     if (fromUserId) {
       fromUser = await queryOne(`
@@ -147,7 +183,7 @@ export const sendNotification = async (io, userId, type, data) => {
       `, [fromUserId]);
     }
 
-    // 3. Construire l'objet complet pour le frontend
+    // 3. Construire l'objet
     const notificationPayload = {
       id: result.id,
       type,

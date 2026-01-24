@@ -6,8 +6,6 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import passport from 'passport';
-import './config/passport.js';
 import eventRoutes from './routes/events.js';
 
 import { connectDB, testConnection } from './config/database.js';
@@ -64,7 +62,8 @@ const authLimiter = rateLimit({
 });
 app.use('/api/auth/login', authLimiter);
 
-app.use(passport.initialize());
+// --- SUPPRESSION DE PASSPORT.INITIALIZE() ---
+
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
