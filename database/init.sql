@@ -192,3 +192,31 @@ INSERT INTO tags (name) VALUES
     ('nature'), ('animals'), ('coffee'), ('wine'), ('vegan'),
     ('foodie'), ('netflix'), ('beach'), ('mountains'), ('science'),
     ('politics'), ('spirituality'), ('meditation'), ('running'), ('cycling');
+
+-- Event Status Enum
+CREATE TYPE event_status AS ENUM ('pending', 'accepted', 'declined', 'cancelled');
+
+-- Events Table
+CREATE TABLE events (
+    id SERIAL PRIMARY KEY,
+    creator_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    target_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    event_date TIMESTAMP NOT NULL,
+    location VARCHAR(255) NOT NULL,
+    description TEXT,
+    status event_status DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CHECK (creator_id != target_id)
+);
+
+-- Index pour les requêtes rapides
+CREATE INDEX idx_events_creator ON events(creator_id);
+CREATE INDEX idx_events_target ON events(target_id);
+CREATE INDEX idx_events_date ON events(event_date);
+
+-- Trigger pour updated_at (réutilise la fonction existante)
+CREATE TRIGGER update_events_updated_at
+    BEFORE UPDATE ON events
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at();

@@ -113,4 +113,11 @@ export const tagsAPI = {
   search: (query) => api.get('/tags/search', { params: { q: query } })
 };
 
+// Events endpoints
+export const eventAPI = {
+  create: (data) => api.post('/events', data),
+  getByUser: (targetId) => api.get(`/events/${targetId}`),
+  updateStatus: (eventId, status) => api.put(`/events/${eventId}/status`, { status })
+};
+
 export default api;

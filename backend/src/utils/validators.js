@@ -190,3 +190,40 @@ export const validateLogin = (data) => {
     errors
   };
 };
+
+/**
+ * Validate event creation
+ */
+export const validateEvent = (data) => {
+  const errors = {};
+
+  // Date validation
+  if (!data.date) {
+    errors.date = 'Date is required';
+  } else {
+    const eventDate = new Date(data.date);
+    const now = new Date();
+    if (isNaN(eventDate.getTime())) {
+      errors.date = 'Invalid date format';
+    } else if (eventDate < now) {
+      errors.date = 'Date must be in the future';
+    }
+  }
+
+  // Location validation
+  if (!data.location) {
+    errors.location = 'Location is required';
+  } else if (typeof data.location !== 'string' || data.location.trim().length < 3) {
+    errors.location = 'Location must be at least 3 characters';
+  }
+
+  // Description validation (optional but limits)
+  if (data.description && data.description.length > 500) {
+    errors.description = 'Description is too long (max 500 chars)';
+  }
+
+  return {
+    valid: Object.keys(errors).length === 0,
+    errors
+  };
+};

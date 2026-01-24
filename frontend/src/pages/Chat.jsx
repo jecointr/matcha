@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { chatAPI } from '../services/api';
+import { chatAPI, eventAPI } from '../services/api';
 import { useSocket } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
 import { 
   Send, Loader, MessageCircle, Circle, ArrowLeft, 
-  ChevronLeft, User, Check, CheckCheck
+  ChevronLeft, User, Check, CheckCheck, Calendar,
+  MapPin, Clock
 } from 'lucide-react';
+import EventModal from '../components/chat/EventModal';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -24,10 +26,62 @@ const Chat = () => {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [typingUsers, setTypingUsers] = useState({});
   const [hasMore, setHasMore] = useState(false);
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [events, setEvents] = useState([]);
+  const [creatingEvent, setCreatingEvent] = useState(false);
   
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+
+  // Charger les events quand on change de conversation
+  useEffect(() => {
+    if (activeConversation) {
+      loadEvents(activeConversation.otherUser.id);
+    }
+  }, [activeConversation]);
+
+  const loadEvents = async (targetId) => {
+    try {
+      const res = await eventAPI.getByUser(targetId);
+      // On filtre pour ne garder que les events futurs ou récents
+      setEvents(res.data.events.filter(e => e.status !== 'cancelled')); 
+    } catch (err) {
+      console.error('Failed to load events', err);
+    }
+  };
+
+  const handleCreateEvent = async (eventData) => {
+    setCreatingEvent(true);
+    try {
+      await eventAPI.create({
+        targetId: activeConversation.otherUser.id,
+        ...eventData
+      });
+      setShowEventModal(false);
+      loadEvents(activeConversation.otherUser.id);
+      
+      // Petit hack UX: envoyer un message automatique
+      await chatAPI.sendMessage(activeConversation.id, "📅 I just proposed a date! Check the details above.");
+    } catch (err) {
+      alert(err.response?.data?.errors?.date || 'Failed to create event');
+    } finally {
+      setCreatingEvent(false);
+    }
+  };
+
+  const handleEventStatus = async (eventId, status) => {
+    try {
+      await eventAPI.updateStatus(eventId, status);
+      loadEvents(activeConversation.otherUser.id);
+      
+      // Feedback dans le chat
+      const msg = status === 'accepted' ? "🎉 I accepted the date!" : "❌ I declined the date.";
+      await chatAPI.sendMessage(activeConversation.id, msg);
+    } catch (err) {
+      console.error('Update status failed', err);
+    }
+  };
 
   // Load conversations
   useEffect(() => {
@@ -341,7 +395,7 @@ const Chat = () => {
                 </div>
                 
                 {conv.unreadCount > 0 && (
-                  <span className="bg-primary-500 text-white text-xs font-bold px-2 py-1 rounded-full min-w-[1.25rem] text-center">
+                  <span className="bg-primary-500 text-white text-xs font-bold px-2 py-1 rounded-full min-w-5 text-center">
                     {conv.unreadCount}
                   </span>
                 )}
@@ -395,6 +449,65 @@ const Chat = () => {
               </Link>
             </div>
 
+            {/* Events Banner - Afficher le prochain event s'il existe */}
+              {events.length > 0 && (
+                <div className="bg-primary-50 border-b p-3">
+                  {events.map(evt => (
+                    <div key={evt.id} className="bg-white p-3 rounded-lg shadow-sm border border-primary-100 flex justify-between items-center mb-2 last:mb-0">
+                      <div className="flex gap-3">
+                          <div className="bg-primary-100 p-2 rounded-lg flex flex-col items-center justify-center min-w-14 text-primary-700">
+                            <span className="text-xs font-bold uppercase">{new Date(evt.event_date).toLocaleString('default', { month: 'short' })}</span>
+                            <span className="text-lg font-bold">{new Date(evt.event_date).getDate()}</span>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-gray-900 flex items-center gap-2">
+                              {evt.location}
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                evt.status === 'accepted' ? 'bg-green-100 text-green-700' : 
+                                evt.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100'
+                              }`}>
+                                {evt.status}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-600 flex items-center gap-1">
+                              <Clock className="w-3 h-3" /> {new Date(evt.event_date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                              {evt.description && <span className="text-gray-400 mx-1">• {evt.description}</span>}
+                            </p>
+                          </div>
+                      </div>
+
+                      {/* Actions Buttons */}
+                      <div className="flex gap-2">
+                        {evt.status === 'pending' && evt.target_id === user.id && (
+                          <>
+                            <button 
+                              onClick={() => handleEventStatus(evt.id, 'accepted')}
+                              className="btn-primary text-xs px-3 py-1"
+                            >
+                              Accept
+                            </button>
+                            <button 
+                              onClick={() => handleEventStatus(evt.id, 'declined')}
+                              className="bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-xs px-3 py-1 transition"
+                            >
+                              Decline
+                            </button>
+                          </>
+                        )}
+                        {evt.status === 'pending' && evt.creator_id === user.id && (
+                          <button 
+                              onClick={() => handleEventStatus(evt.id, 'cancelled')}
+                              className="text-gray-400 hover:text-red-500 text-xs px-2"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
             {/* Messages */}
             <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4">
               {hasMore && (
@@ -425,7 +538,7 @@ const Chat = () => {
                             ? 'bg-primary-500 text-white rounded-br-md' 
                             : 'bg-gray-100 text-gray-900 rounded-bl-md'
                         }`}>
-                          <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                          <p className="whitespace-pre-wrap wrap-break-word">{msg.content}</p>
                         </div>
                         <div className={`flex items-center gap-1 mt-1 text-xs text-gray-400 ${
                           msg.isOwn ? 'justify-end' : ''
@@ -460,7 +573,15 @@ const Chat = () => {
             </div>
 
             {/* Message input */}
-            <form onSubmit={handleSend} className="p-4 border-t flex gap-2">
+            <form onSubmit={handleSend} className="p-4 border-t flex gap-2 items-center">
+              <button
+                type="button"
+                onClick={() => setShowEventModal(true)}
+                className="p-3 text-gray-500 hover:text-primary-500 hover:bg-primary-50 rounded-full transition-colors"
+                title="Schedule a date"
+              >
+                <Calendar className="w-5 h-5" />
+              </button>
               <input
                 type="text"
                 value={newMessage}
@@ -491,6 +612,12 @@ const Chat = () => {
           </div>
         )}
       </div>
+      <EventModal 
+        isOpen={showEventModal} 
+        onClose={() => setShowEventModal(false)}
+        onSubmit={handleCreateEvent}
+        loading={creatingEvent}
+      />
     </div>
   );
 };

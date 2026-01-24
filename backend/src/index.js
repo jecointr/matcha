@@ -8,6 +8,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import passport from 'passport';
 import './config/passport.js';
+import eventRoutes from './routes/events.js';
 
 import { connectDB, testConnection } from './config/database.js';
 import { initializeSocket } from './config/socket.js';
@@ -88,6 +89,7 @@ app.use('/api/profiles', profileRoutes);
 app.use('/api/matches', matchRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/events', eventRoutes);
 
 // 404 handler
 app.use('/api', (req, res) => {
