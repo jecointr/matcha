@@ -86,6 +86,16 @@ export const initializeSocket = (io) => {
       });
     });
 
+    socket.on('chat:read', ({ conversationId, senderId }) => {
+      // On informe l'utilisateur (senderId) que ses messages ont été lus par (userId)
+      console.log(`User ${userId} read messages from ${senderId} in conv ${conversationId}`);
+      io.to(`user:${senderId}`).emit('chat:read', {
+        conversationId,
+        readerId: userId,
+        readAt: new Date().toISOString()
+      });
+    });
+
     // --- WEBRTC SIGNALING (VIDEO/AUDIO) - DEBUG VERSION ---
     
     // 1. Initier un appel
@@ -223,4 +233,14 @@ export const sendChatMessage = (io, conversationId, message) => {
  */
 export const getConnectedUserIds = () => {
   return Array.from(connectedUsers.keys());
+};
+
+export const sendMessagesRead = (io, conversationId, readerId, senderId) => {
+  // On notifie l'utilisateur qui avait envoyé les messages (senderId)
+  // que l'utilisateur (readerId) a tout lu dans cette conversation.
+  io.to(`user:${senderId}`).emit('chat:read', {
+    conversationId,
+    readerId,
+    readAt: new Date().toISOString()
+  });
 };

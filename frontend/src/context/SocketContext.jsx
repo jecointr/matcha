@@ -24,7 +24,10 @@ export const useSocket = () => {
       onTyping: () => () => {},
       clearUnreadMessages: () => {},
       clearUnreadNotifications: () => {},
-      clearNotification: () => {}
+      clearNotification: () => {},
+      onTyping: () => () => {},
+      sendReadSignal: () => {}, 
+      onMessagesRead: () => () => {},
     };
   }
   return context;
@@ -154,6 +157,12 @@ export const SocketProvider = ({ children }) => {
     }
   }, [socket, connected]);
 
+  const sendReadSignal = useCallback((conversationId, senderId) => {
+    if (socket && connected) {
+      socket.emit('chat:read', { conversationId, senderId });
+    }
+  }, [socket, connected]);
+
   // --- LISTENERS ---
 
   const onChatMessage = useCallback((callback) => {
@@ -198,6 +207,14 @@ export const SocketProvider = ({ children }) => {
     setNotifications(prev => prev.filter(n => n.id !== notificationId));
   }, []);
 
+  const onMessagesRead = useCallback((callback) => {
+    if (socket) {
+      socket.on('chat:read', callback);
+      return () => socket.off('chat:read', callback);
+    }
+    return () => {};
+  }, [socket]);
+
   const value = {
     socket,
     connected,
@@ -214,7 +231,16 @@ export const SocketProvider = ({ children }) => {
     onTyping,
     clearUnreadMessages,
     clearUnreadNotifications,
-    clearNotification
+    clearNotification,
+    onTyping,
+    sendReadSignal,
+    onMessagesRead: useCallback((callback) => {
+      if (socket) {
+        socket.on('chat:read', callback);
+        return () => socket.off('chat:read', callback);
+      }
+      return () => {};
+    }, [socket]),
   };
 
   return (

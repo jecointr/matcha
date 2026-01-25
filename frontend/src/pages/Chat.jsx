@@ -12,15 +12,24 @@ import EventModal from '../components/chat/EventModal';
 import VideoCallModal from '../components/chat/VideoCallModal';
 import { useCall } from '../context/CallContext';
 
-
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const Chat = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
-  const { joinChat, leaveChat, onChatMessage, startTyping, stopTyping, onTyping, clearUnreadMessages } = useSocket();
   
-  // Récupération de la fonction d'appel
+  const { 
+    joinChat, 
+    leaveChat, 
+    onChatMessage, 
+    onMessagesRead, 
+    startTyping, 
+    stopTyping, 
+    onTyping, 
+    clearUnreadMessages, 
+    sendReadSignal 
+  } = useSocket();  
+  
   const { callUser } = useCall();
 
   const [conversations, setConversations] = useState([]);
@@ -38,6 +47,11 @@ const Chat = () => {
   
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
+  
+  // --- BEST PRACTICE TYPING ---
+  // isTypingRef permet de savoir si on a déjà envoyé le signal "start"
+  // pour éviter de spammer le socket à chaque touche
+  const isTypingRef = useRef(false);
   const typingTimeoutRef = useRef(null);
 
   // Charger les events quand on change de conversation
@@ -50,7 +64,6 @@ const Chat = () => {
   const loadEvents = async (targetId) => {
     try {
       const res = await eventAPI.getByUser(targetId);
-      // On filtre pour ne garder que les events futurs ou récents
       setEvents(res.data.events.filter(e => e.status !== 'cancelled')); 
     } catch (err) {
       console.error('Failed to load events', err);
@@ -67,7 +80,6 @@ const Chat = () => {
       setShowEventModal(false);
       loadEvents(activeConversation.otherUser.id);
       
-      // Petit hack UX: envoyer un message automatique
       await chatAPI.sendMessage(activeConversation.id, "📅 I just proposed a date! Check the details above.");
     } catch (err) {
       alert(err.response?.data?.errors?.date || 'Failed to create event');
@@ -76,12 +88,26 @@ const Chat = () => {
     }
   };
 
+  // --- ÉCOUTER LA LECTURE DES MESSAGES (TEMPS RÉEL) ---
+  useEffect(() => {
+    const unsubscribe = onMessagesRead((data) => {
+      // Si la confirmation concerne la conversation actuelle
+      if (activeConversation && Number(data.conversationId) === Number(activeConversation.id)) {
+        setMessages(prev => prev.map(msg => {
+            // On marque tous nos propres messages comme lus
+            if (msg.isOwn) return { ...msg, isRead: true };
+            return msg;
+        }));
+      }
+    });
+    return unsubscribe;
+  }, [onMessagesRead, activeConversation]);
+
   const handleEventStatus = async (eventId, status) => {
     try {
       await eventAPI.updateStatus(eventId, status);
       loadEvents(activeConversation.otherUser.id);
       
-      // Feedback dans le chat
       const msg = status === 'accepted' ? "🎉 I accepted the date!" : "❌ I declined the date.";
       await chatAPI.sendMessage(activeConversation.id, msg);
     } catch (err) {
@@ -105,15 +131,20 @@ const Chat = () => {
     }
   }, [searchParams, conversations]);
 
-  // Join/leave chat room
+  // Join/leave chat room & Reset Typing state
   useEffect(() => {
     if (activeConversation) {
       joinChat(activeConversation.id);
       loadMessages(activeConversation.id);
       markAsRead(activeConversation.id);
       
+      // Reset typing local state quand on change de conversation
+      isTypingRef.current = false;
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+
       return () => {
         leaveChat(activeConversation.id);
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       };
     }
   }, [activeConversation?.id]);
@@ -121,11 +152,9 @@ const Chat = () => {
   // Listen for new messages
   useEffect(() => {
     const unsubscribe = onChatMessage((message) => {
-      console.log("📩 Socket Message reçu sur Chat.jsx:", message);
-
       if (message.senderId === user.id) return;
 
-      // Stop typing
+      // Stop typing indicator immediately if we receive a message from them
       setTypingUsers(prev => {
         const next = { ...prev };
         delete next[message.senderId];
@@ -145,17 +174,14 @@ const Chat = () => {
         markAsRead(activeConvId);
       }
 
-      // 2. Mise à jour de la Sidebar (Pour TOUTES les conversations)
+      // 2. Mise à jour de la Sidebar
       setConversations(prev => {
         const index = prev.findIndex(c => Number(c.id) === msgConvId);
-
-        // Si nouvelle conversation (inconnue), on recharge tout par sécurité
         if (index === -1) {
           loadConversations();
           return prev;
         }
 
-        // On sort la conversation, on la met à jour, on la place en haut
         const updatedConv = { ...prev[index] };
         const otherConvs = prev.filter(c => Number(c.id) !== msgConvId);
 
@@ -190,7 +216,6 @@ const Chat = () => {
         }
       }
     });
-
     return unsubscribe;
   }, [onTyping, activeConversation]);
 
@@ -228,6 +253,11 @@ const Chat = () => {
   const markAsRead = async (conversationId) => {
     try {
       await chatAPI.markAsRead(conversationId);
+      
+      if (activeConversation && Number(activeConversation.id) === Number(conversationId)) {
+         sendReadSignal(conversationId, activeConversation.otherUser.id);
+      }
+      
       setConversations(prev => prev.map(c => 
         c.id === conversationId ? { ...c, unreadCount: 0 } : c
       ));
@@ -237,19 +267,48 @@ const Chat = () => {
     }
   };
 
+  // --- MODIFICATION : GESTION OPTIMISTE DU MESSAGE ET STATUTS ---
   const handleSend = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || sending || !activeConversation) return;
 
+    // --- BEST PRACTICE : ARRÊT DU TYPING IMMÉDIAT ---
+    if (activeConversation) {
+      stopTyping(activeConversation.id);
+      isTypingRef.current = false;
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    }
+    // ------------------------------------------------
+
     setSending(true);
     const content = newMessage.trim();
     setNewMessage('');
+    
+    // ID temporaire pour affichage immédiat
+    const tempId = Date.now();
+    
+    // Message "Optimiste"
+    const optimisticMessage = {
+      id: tempId,
+      senderId: user.id,
+      content: content,
+      isRead: false,
+      createdAt: new Date().toISOString(),
+      isOwn: true,
+      status: 'sending'
+    };
+
+    // Ajout immédiat à la liste
+    setMessages(prev => [...prev, optimisticMessage]);
+    scrollToBottom();
 
     try {
       const response = await chatAPI.sendMessage(activeConversation.id, content);
       
-      setMessages(prev => [...prev, response.data.message]);
-      scrollToBottom();
+      // On remplace le message temporaire par le vrai (confirmé)
+      setMessages(prev => prev.map(msg => 
+        msg.id === tempId ? { ...response.data.message, status: 'sent', isOwn: true } : msg
+      ));
       
       setConversations(prev => {
         const activeId = Number(activeConversation.id);
@@ -266,27 +325,46 @@ const Chat = () => {
       });
     } catch (err) {
       console.error('Failed to send message:', err);
+      // En cas d'erreur on retire le message
+      setMessages(prev => prev.filter(msg => msg.id !== tempId));
       setNewMessage(content); 
     } finally {
       setSending(false);
     }
   };
 
+  // --- BEST PRACTICE : LOGIQUE DU TYPING ---
   const handleTyping = (e) => {
-    setNewMessage(e.target.value);
+    const value = e.target.value;
+    setNewMessage(value);
     
-    if (activeConversation) {
-      startTyping(activeConversation.id);
-      
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
-      
-      typingTimeoutRef.current = setTimeout(() => {
-        stopTyping(activeConversation.id);
-      }, 2000);
+    if (!activeConversation) return;
+
+    // CAS 1 : L'utilisateur a tout effacé -> Arrêt immédiat
+    if (value.trim() === '') {
+      stopTyping(activeConversation.id);
+      isTypingRef.current = false;
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      return;
     }
+
+    // CAS 2 : Début d'écriture (Debounced par Ref)
+    if (!isTypingRef.current) {
+      startTyping(activeConversation.id);
+      isTypingRef.current = true;
+    }
+
+    // CAS 3 : Gestion de la pause (Timeout de 3s)
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    
+    typingTimeoutRef.current = setTimeout(() => {
+      stopTyping(activeConversation.id);
+      isTypingRef.current = false;
+    }, 3000);
   };
+  // -----------------------------------------
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -443,15 +521,13 @@ const Chat = () => {
                 </div>
               </Link>
               
-              {/* === BOUTONS APPEL AJOUTÉS ICI === */}
               <button 
-                onClick={() => callUser(activeConversation.otherUser.id, false)} // false = pas de vidéo
+                onClick={() => callUser(activeConversation.otherUser.id, false)}
                 className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-full transition-all duration-200"
                 title="Start Audio Call"
               >
                 <Phone className="w-5 h-5" />
               </button>
-              {/* === BOUTON VIDEO AJOUTÉ ICI === */}
               <button 
                 onClick={() => callUser(activeConversation.otherUser.id, true)}
                 className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-full transition-all duration-200"
@@ -459,7 +535,6 @@ const Chat = () => {
               >
                 <Video className="w-6 h-6" />
               </button>
-              {/* ============================== */}
             </div>
 
             {/* Events Banner */}
@@ -552,16 +627,32 @@ const Chat = () => {
                         }`}>
                           <p className="whitespace-pre-wrap wrap-break-word">{msg.content}</p>
                         </div>
+                        
+                        {/* COCHES DE STATUT */}
                         <div className={`flex items-center gap-1 mt-1 text-xs text-gray-400 ${
                           msg.isOwn ? 'justify-end' : ''
                         }`}>
                           <span>{formatTime(msg.createdAt)}</span>
                           {msg.isOwn && (
-                            msg.isRead 
-                              ? <CheckCheck className="w-3 h-3 text-blue-500" />
-                              : <Check className="w-3 h-3" />
+                            <>
+                              {/* 1. Envoi en cours (status='sending') -> 1 coche grise */}
+                              {msg.status === 'sending' && (
+                                <Check className="w-3 h-3 text-gray-300" />
+                              )}
+                              
+                              {/* 2. Envoyé/Délivré (pas encore lu) -> 2 coches grises */}
+                              {msg.status !== 'sending' && !msg.isRead && (
+                                <CheckCheck className="w-3 h-3 text-gray-400" />
+                              )}
+                              
+                              {/* 3. Lu -> 2 coches colorées (Bleues) */}
+                              {msg.status !== 'sending' && msg.isRead && (
+                                <CheckCheck className="w-3 h-3 text-blue-500" />
+                              )}
+                            </>
                           )}
                         </div>
+
                       </div>
                     </div>
                   </div>
@@ -630,11 +721,7 @@ const Chat = () => {
         onSubmit={handleCreateEvent}
         loading={creatingEvent}
       />
-      
-      {/* === MODALE AJOUTÉE ICI === */}
       <VideoCallModal />
-      {/* ========================== */}
-      
     </div>
   );
 };

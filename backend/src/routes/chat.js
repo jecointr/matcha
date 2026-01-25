@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { query, queryOne, queryAll } from '../config/database.js';
 import { authenticate, requireVerified } from '../middlewares/auth.js';
-import { sendNotification, sendChatMessage } from '../config/socket.js';
+import { sendNotification, sendChatMessage, sendMessagesRead } from '../config/socket.js';
 import xss from 'xss';
 
 const router = Router();
@@ -401,6 +401,44 @@ router.get('/unread-count', async (req, res) => {
   } catch (error) {
     console.error('Get unread count error:', error);
     res.status(500).json({ error: 'Failed to get unread count' });
+  }
+});
+
+router.put('/:conversationId/read', async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { conversationId } = req.params;
+
+    // 1. Verify user is part of conversation AND get the other user ID
+    const conversation = await queryOne(
+      `SELECT id, 
+       CASE WHEN user1_id = $2 THEN user2_id ELSE user1_id END as other_user_id
+       FROM conversations 
+       WHERE id = $1 AND (user1_id = $2 OR user2_id = $2)`,
+      [conversationId, userId]
+    );
+
+    if (!conversation) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
+
+    // 2. Update DB
+    await query(`
+      UPDATE messages 
+      SET is_read = true 
+      WHERE conversation_id = $1 AND sender_id != $2 AND is_read = false
+    `, [conversationId, userId]);
+
+    // 3. ACTUALISATION TEMPS RÉEL (Le Fix)
+    const io = req.app.get('io');
+    // On notifie l'AUTRE utilisateur (celui qui a écrit les messages) que c'est lu
+    sendMessagesRead(io, parseInt(conversationId), userId, conversation.other_user_id);
+
+    res.json({ message: 'Messages marked as read' });
+
+  } catch (error) {
+    console.error('Mark read error:', error);
+    res.status(500).json({ error: 'Failed to mark messages as read' });
   }
 });
 
