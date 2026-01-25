@@ -362,7 +362,7 @@ const Chat = () => {
     typingTimeoutRef.current = setTimeout(() => {
       stopTyping(activeConversation.id);
       isTypingRef.current = false;
-    }, 3000);
+    }, 2000);
   };
   // -----------------------------------------
 
