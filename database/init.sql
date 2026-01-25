@@ -234,3 +234,15 @@ INSERT INTO tags (name) VALUES
     ('foodie'), ('netflix'), ('beach'), ('mountains'), ('science'),
     ('politics'), ('spirituality'), ('meditation'), ('running'), ('cycling')
 ON CONFLICT (name) DO NOTHING;
+
+-- Reactions table
+CREATE TABLE IF NOT EXISTS message_reactions (
+    id SERIAL PRIMARY KEY,
+    message_id INTEGER REFERENCES messages(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    emoji VARCHAR(10) NOT NULL, -- Stocke l'emoji (ex: '❤️')
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(message_id, user_id) -- Un utilisateur ne peut réagir qu'une fois par message
+);
+
+CREATE INDEX IF NOT EXISTS idx_reactions_message ON message_reactions(message_id);

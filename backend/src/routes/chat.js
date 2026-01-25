@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { query, queryOne, queryAll } from '../config/database.js';
 import { authenticate, requireVerified } from '../middlewares/auth.js';
-import { sendNotification, sendChatMessage, sendMessagesRead } from '../config/socket.js';
+import { sendNotification, sendChatMessage, sendMessagesRead, sendReaction } from '../config/socket.js';
 import xss from 'xss';
 
 const router = Router();
@@ -207,7 +207,15 @@ router.get('/:conversationId/messages', async (req, res) => {
         m.is_read,
         m.created_at,
         u.username,
-        u.first_name
+        u.first_name,
+        COALESCE(
+          (
+            SELECT json_agg(json_build_object('userId', mr.user_id, 'emoji', mr.emoji))
+            FROM message_reactions mr
+            WHERE mr.message_id = m.id
+          ),
+          '[]'
+        ) as reactions
       FROM messages m
       JOIN users u ON u.id = m.sender_id
       ${whereClause}
@@ -439,6 +447,77 @@ router.put('/:conversationId/read', async (req, res) => {
   } catch (error) {
     console.error('Mark read error:', error);
     res.status(500).json({ error: 'Failed to mark messages as read' });
+  }
+});
+
+/**
+ * POST /api/chat/messages/:messageId/react
+ * Toggle reaction on a message
+ */
+router.post('/messages/:messageId/react', async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { messageId } = req.params;
+    const { emoji } = req.body; // Envoyer null pour supprimer
+
+    // 1. Vérifier que le message existe et récupérer la conversation
+    const message = await queryOne(`
+      SELECT m.id, m.conversation_id, c.user1_id, c.user2_id
+      FROM messages m
+      JOIN conversations c ON m.conversation_id = c.id
+      WHERE m.id = $1
+    `, [messageId]);
+
+    if (!message) return res.status(404).json({ error: 'Message not found' });
+
+    // 2. Vérifier que l'user fait partie de la conversation
+    if (message.user1_id !== userId && message.user2_id !== userId) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    // 3. Logique de Toggle (Upsert/Delete)
+    let action = 'added';
+    
+    // On regarde si une réaction existe déjà
+    const existing = await queryOne(
+      'SELECT id, emoji FROM message_reactions WHERE message_id = $1 AND user_id = $2',
+      [messageId, userId]
+    );
+
+    if (existing) {
+      if (!emoji || existing.emoji === emoji) {
+        // Si on envoie null ou le même emoji -> Suppression
+        await query('DELETE FROM message_reactions WHERE id = $1', [existing.id]);
+        action = 'removed';
+      } else {
+        // Sinon -> Mise à jour
+        await query('UPDATE message_reactions SET emoji = $1 WHERE id = $2', [emoji, existing.id]);
+        action = 'updated';
+      }
+    } else if (emoji) {
+      // Pas de réaction existante et emoji fourni -> Insertion
+      await query(
+        'INSERT INTO message_reactions (message_id, user_id, emoji) VALUES ($1, $2, $3)',
+        [messageId, userId, emoji]
+      );
+    }
+
+    // 4. WebSocket
+    const io = req.app.get('io');
+    const reactionData = {
+      messageId: parseInt(messageId),
+      userId,
+      emoji: action === 'removed' ? null : emoji,
+      action
+    };
+    
+    sendReaction(io, message.conversation_id, reactionData);
+
+    res.json(reactionData);
+
+  } catch (error) {
+    console.error('Reaction error:', error);
+    res.status(500).json({ error: 'Failed to react' });
   }
 });
 

@@ -244,3 +244,7 @@ export const sendMessagesRead = (io, conversationId, readerId, senderId) => {
     readAt: new Date().toISOString()
   });
 };
+
+export const sendReaction = (io, conversationId, reactionData) => {
+  io.to(`chat:${conversationId}`).emit('chat:reaction', reactionData);
+};

@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { 
   Send, Loader, MessageCircle, Circle, ArrowLeft, 
   ChevronLeft, User, Check, CheckCheck, Calendar,
-  MapPin, Clock, Video, Phone, Ban
+  MapPin, Clock, Video, Phone, Ban, Smile
 } from 'lucide-react';
 import EventModal from '../components/chat/EventModal';
 import VideoCallModal from '../components/chat/VideoCallModal';
@@ -28,7 +28,8 @@ const Chat = () => {
     stopTyping, 
     onTyping, 
     clearUnreadMessages, 
-    sendReadSignal 
+    sendReadSignal,
+    onReaction
   } = useSocket();  
   
   const { callUser } = useCall();
@@ -50,8 +51,6 @@ const Chat = () => {
   const messagesContainerRef = useRef(null);
   
   // --- BEST PRACTICE TYPING ---
-  // isTypingRef permet de savoir si on a déjà envoyé le signal "start"
-  // pour éviter de spammer le socket à chaque touche
   const isTypingRef = useRef(false);
   const typingTimeoutRef = useRef(null);
 
@@ -61,16 +60,14 @@ const Chat = () => {
     try {
         await profileAPI.block(activeConversation.otherUser.id);
         alert("Utilisateur bloqué.");
-        // On redirige ou on rafraichit
         setActiveConversation(null);
-        loadConversations(); // Recharger la liste (la conv devrait disparaitre si le back gère bien)
+        loadConversations();
     } catch (err) {
         console.error("Erreur blocage:", err);
         alert("Erreur lors du blocage.");
     }
   };
 
-  // Charger les events quand on change de conversation
   useEffect(() => {
     if (activeConversation) {
       loadEvents(activeConversation.otherUser.id);
@@ -107,10 +104,8 @@ const Chat = () => {
   // --- ÉCOUTER LA LECTURE DES MESSAGES (TEMPS RÉEL) ---
   useEffect(() => {
     const unsubscribe = onMessagesRead((data) => {
-      // Si la confirmation concerne la conversation actuelle
       if (activeConversation && Number(data.conversationId) === Number(activeConversation.id)) {
         setMessages(prev => prev.map(msg => {
-            // On marque tous nos propres messages comme lus
             if (msg.isOwn) return { ...msg, isRead: true };
             return msg;
         }));
@@ -118,6 +113,30 @@ const Chat = () => {
     });
     return unsubscribe;
   }, [onMessagesRead, activeConversation]);
+
+  // --- ECOUTER LES REATIONS (NOUVEAU) ---
+  useEffect(() => {
+    const unsubscribe = onReaction((data) => {
+      setMessages(prev => prev.map(msg => {
+        if (msg.id === data.messageId) {
+          // Copie des réactions existantes
+          let newReactions = msg.reactions ? [...msg.reactions] : [];
+          
+          if (data.action === 'removed') {
+            newReactions = newReactions.filter(r => r.userId !== data.userId);
+          } else {
+            // Remove previous reaction from this user if exists
+            newReactions = newReactions.filter(r => r.userId !== data.userId);
+            // Add new one
+            newReactions.push({ userId: data.userId, emoji: data.emoji });
+          }
+          return { ...msg, reactions: newReactions };
+        }
+        return msg;
+      }));
+    });
+    return unsubscribe;
+  }, [onReaction]);
 
   const handleEventStatus = async (eventId, status) => {
     try {
@@ -131,12 +150,19 @@ const Chat = () => {
     }
   };
 
-  // Load conversations
+  // --- GESTION CLICK REACTION (NOUVEAU) ---
+  const handleReaction = async (messageId, emoji) => {
+    try {
+      await chatAPI.reactToMessage(messageId, emoji);
+    } catch (err) {
+      console.error("Failed to react", err);
+    }
+  };
+
   useEffect(() => {
     loadConversations();
   }, []);
 
-  // Handle URL param for direct conversation
   useEffect(() => {
     const conversationId = searchParams.get('id');
     if (conversationId && conversations.length > 0) {
@@ -147,14 +173,12 @@ const Chat = () => {
     }
   }, [searchParams, conversations]);
 
-  // Join/leave chat room & Reset Typing state
   useEffect(() => {
     if (activeConversation) {
       joinChat(activeConversation.id);
       loadMessages(activeConversation.id);
       markAsRead(activeConversation.id);
       
-      // Reset typing local state quand on change de conversation
       isTypingRef.current = false;
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
@@ -165,12 +189,10 @@ const Chat = () => {
     }
   }, [activeConversation?.id]);
 
-  // Listen for new messages
   useEffect(() => {
     const unsubscribe = onChatMessage((message) => {
       if (message.senderId === user.id) return;
 
-      // Stop typing indicator immediately if we receive a message from them
       setTypingUsers(prev => {
         const next = { ...prev };
         delete next[message.senderId];
@@ -180,7 +202,6 @@ const Chat = () => {
       const msgConvId = Number(message.conversationId || message.conversation_id);
       const activeConvId = activeConversation ? Number(activeConversation.id) : null;
 
-      // 1. Si on est SUR la conversation active : Ajouter le message + Scroll
       if (activeConvId === msgConvId) {
         setMessages(prev => {
           if (prev.some(m => m.id === message.id)) return prev;
@@ -190,7 +211,6 @@ const Chat = () => {
         markAsRead(activeConvId);
       }
 
-      // 2. Mise à jour de la Sidebar
       setConversations(prev => {
         const index = prev.findIndex(c => Number(c.id) === msgConvId);
         if (index === -1) {
@@ -217,7 +237,6 @@ const Chat = () => {
     return unsubscribe;
   }, [onChatMessage, activeConversation, user.id]);
 
-  // Listen for typing indicators
   useEffect(() => {
     const unsubscribe = onTyping((data) => {
       if (data.conversationId === activeConversation?.id) {
@@ -283,27 +302,22 @@ const Chat = () => {
     }
   };
 
-  // --- MODIFICATION : GESTION OPTIMISTE DU MESSAGE ET STATUTS ---
   const handleSend = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || sending || !activeConversation) return;
 
-    // --- BEST PRACTICE : ARRÊT DU TYPING IMMÉDIAT ---
     if (activeConversation) {
       stopTyping(activeConversation.id);
       isTypingRef.current = false;
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     }
-    // ------------------------------------------------
 
     setSending(true);
     const content = newMessage.trim();
     setNewMessage('');
     
-    // ID temporaire pour affichage immédiat
     const tempId = Date.now();
     
-    // Message "Optimiste"
     const optimisticMessage = {
       id: tempId,
       senderId: user.id,
@@ -314,14 +328,12 @@ const Chat = () => {
       status: 'sending'
     };
 
-    // Ajout immédiat à la liste
     setMessages(prev => [...prev, optimisticMessage]);
     scrollToBottom();
 
     try {
       const response = await chatAPI.sendMessage(activeConversation.id, content);
       
-      // On remplace le message temporaire par le vrai (confirmé)
       setMessages(prev => prev.map(msg => 
         msg.id === tempId ? { ...response.data.message, status: 'sent', isOwn: true } : msg
       ));
@@ -341,7 +353,6 @@ const Chat = () => {
       });
     } catch (err) {
       console.error('Failed to send message:', err);
-      // En cas d'erreur on retire le message
       setMessages(prev => prev.filter(msg => msg.id !== tempId));
       setNewMessage(content); 
     } finally {
@@ -349,14 +360,12 @@ const Chat = () => {
     }
   };
 
-  // --- BEST PRACTICE : LOGIQUE DU TYPING ---
   const handleTyping = (e) => {
     const value = e.target.value;
     setNewMessage(value);
     
     if (!activeConversation) return;
 
-    // CAS 1 : L'utilisateur a tout effacé -> Arrêt immédiat
     if (value.trim() === '') {
       stopTyping(activeConversation.id);
       isTypingRef.current = false;
@@ -364,13 +373,11 @@ const Chat = () => {
       return;
     }
 
-    // CAS 2 : Début d'écriture (Debounced par Ref)
     if (!isTypingRef.current) {
       startTyping(activeConversation.id);
       isTypingRef.current = true;
     }
 
-    // CAS 3 : Gestion de la pause (Timeout de 3s)
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
@@ -380,7 +387,6 @@ const Chat = () => {
       isTypingRef.current = false;
     }, 2000);
   };
-  // -----------------------------------------
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -642,43 +648,79 @@ const Chat = () => {
                         {formatDate(msg.createdAt)}
                       </div>
                     )}
-                    <div className={`flex ${msg.isOwn ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[70%] ${msg.isOwn ? 'order-2' : ''}`}>
-                        <div className={`px-4 py-2 rounded-2xl ${
-                          msg.isOwn 
-                            ? 'bg-primary-500 text-white rounded-br-md' 
-                            : 'bg-gray-100 text-gray-900 rounded-bl-md'
-                        }`}>
-                          <p className="whitespace-pre-wrap wrap-break-word">{msg.content}</p>
+                    
+                    {/* --- STRUCTURE DU MESSAGE TYPE WHATSAPP (Flex Siblings) --- */}
+                    <div className={`flex w-full mb-4 group ${msg.isOwn ? 'justify-end' : 'justify-start'}`}>
+                      
+                      {/* Inner Container: Si c'est à nous, c'est l'ordre naturel [Smiley][Bulle] (aligné droite) 
+                          Si c'est l'autre, on inverse [Bulle][Smiley] pour que le smiley soit à droite de la bulle */}
+                      <div className={`flex items-center gap-2 max-w-[70%] ${!msg.isOwn ? 'flex-row-reverse' : ''}`}>
+                         
+                        {/* 1. BOUTON DE REACTION (Toujours en premier dans le DOM, l'ordre visuel est géré par flex) */}
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity relative shrink-0">
+                            <div className="relative group/emoji">
+                                <button className="p-1.5 text-gray-400 hover:text-yellow-500 hover:bg-gray-100 rounded-full transition-colors">
+                                    <Smile className="w-4 h-4" />
+                                </button>
+                                
+                                {/* Emoji Picker (Popup vers le haut) */}
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white shadow-xl rounded-full px-2 py-1 flex gap-1 hidden group-hover/emoji:flex border border-gray-100 z-50">
+                                    {['👍', '❤️', '😂', '😮', '😢', '🔥'].map(emoji => (
+                                        <button 
+                                            key={emoji}
+                                            onClick={() => handleReaction(msg.id, emoji)}
+                                            className="hover:scale-125 transition-transform p-1.5 text-xl leading-none"
+                                        >
+                                            {emoji}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
-                        
-                        {/* COCHES DE STATUT */}
-                        <div className={`flex items-center gap-1 mt-1 text-xs text-gray-400 ${
-                          msg.isOwn ? 'justify-end' : ''
-                        }`}>
-                          <span>{formatTime(msg.createdAt)}</span>
-                          {msg.isOwn && (
-                            <>
-                              {/* 1. Envoi en cours (status='sending') -> 1 coche grise */}
-                              {msg.status === 'sending' && (
-                                <Check className="w-3 h-3 text-gray-300" />
+
+                        {/* 2. BULLE DE MESSAGE */}
+                        <div className="relative">
+                            <div className={`px-4 py-2 rounded-2xl ${
+                              msg.isOwn 
+                                ? 'bg-primary-500 text-white rounded-br-md' 
+                                : 'bg-gray-100 text-gray-900 rounded-bl-md'
+                            }`}>
+                              <p className="whitespace-pre-wrap wrap-break-word">{msg.content}</p>
+                            </div>
+
+                            {/* Affichage des réactions (Pillule en bas) */}
+                            {msg.reactions && msg.reactions.length > 0 && (
+                              <div className={`absolute -bottom-3 ${msg.isOwn ? 'right-0' : 'left-0'} flex`}>
+                                <div className="bg-white border shadow-sm rounded-full px-1.5 py-0.5 flex items-center gap-0.5 text-xs z-10 scale-90 origin-top">
+                                  {msg.reactions.map((r, i) => (
+                                    <span key={i} title={r.userId === user.id ? 'You' : ''}>{r.emoji}</span>
+                                  ))}
+                                  {msg.reactions.length > 3 && <span className="text-gray-500 font-medium pl-1">+{msg.reactions.length}</span>}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Statut (Coches) */}
+                            <div className={`flex items-center gap-1 mt-1 text-xs text-gray-400 ${
+                              msg.isOwn ? 'justify-end' : ''
+                            }`}>
+                              <span>{formatTime(msg.createdAt)}</span>
+                              {msg.isOwn && (
+                                <>
+                                  {msg.status === 'sending' ? (
+                                    <Check className="w-3 h-3 text-gray-300" />
+                                  ) : (
+                                    <CheckCheck className={`w-3 h-3 ${msg.isRead ? 'text-blue-500' : 'text-gray-400'}`} />
+                                  )}
+                                </>
                               )}
-                              
-                              {/* 2. Envoyé/Délivré (pas encore lu) -> 2 coches grises */}
-                              {msg.status !== 'sending' && !msg.isRead && (
-                                <CheckCheck className="w-3 h-3 text-gray-400" />
-                              )}
-                              
-                              {/* 3. Lu -> 2 coches colorées (Bleues) */}
-                              {msg.status !== 'sending' && msg.isRead && (
-                                <CheckCheck className="w-3 h-3 text-blue-500" />
-                              )}
-                            </>
-                          )}
+                            </div>
                         </div>
 
                       </div>
                     </div>
+                    {/* --- FIN STRUCTURE MESSAGE --- */}
+
                   </div>
                 );
               })}

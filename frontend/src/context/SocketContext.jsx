@@ -251,6 +251,13 @@ export const SocketProvider = ({ children }) => {
       }
       return () => {};
     }, [socket]),
+    onReaction: useCallback((callback) => {
+      if (socket) {
+        socket.on('chat:reaction', callback);
+        return () => socket.off('chat:reaction', callback);
+      }
+      return () => {};
+    }, [socket]),
   };
 
   return (

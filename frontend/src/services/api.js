@@ -95,7 +95,8 @@ export const chatAPI = {
   getMessages: (conversationId, params) => api.get(`/chat/${conversationId}/messages`, { params }),
   sendMessage: (conversationId, content) => api.post(`/chat/${conversationId}/messages`, { content }),
   markAsRead: (conversationId) => api.put(`/chat/${conversationId}/read`),
-  getUnreadCount: () => api.get('/chat/unread-count')
+  getUnreadCount: () => api.get('/chat/unread-count'),
+  reactToMessage: (messageId, emoji) => api.post(`/chat/messages/${messageId}/react`, { emoji }),
 };
 
 // Notification endpoints
