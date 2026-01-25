@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { query, queryAll } from '../config/database.js';
+import { query, queryOne, queryAll } from '../config/database.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -39,5 +39,66 @@ export const deleteAccount = async (req, res) => {
   } catch (error) {
     console.error('Erreur deleteAccount:', error);
     return res.status(500).json({ error: 'Erreur serveur lors de la suppression' });
+  }
+};
+
+export const blockUser = async (req, res) => {
+  const blockerId = req.userId;
+  const { id: blockedId } = req.params;
+
+  if (parseInt(blockerId) === parseInt(blockedId)) {
+    return res.status(400).json({ error: "Vous ne pouvez pas vous bloquer vous-même" });
+  }
+
+  try {
+    // 1. Vérifier si l'utilisateur existe
+    const userExists = await queryOne('SELECT id FROM users WHERE id = $1', [blockedId]);
+    if (!userExists) {
+      return res.status(404).json({ error: "Utilisateur introuvable" });
+    }
+
+    // 2. Insérer le blocage DANS LA TABLE 'blocks' (et non blocked_users)
+    // Note: Ta table 'blocks' a une contrainte UNIQUE(blocker_id, blocked_id)
+    await query(
+      `INSERT INTO blocks (blocker_id, blocked_id) 
+       VALUES ($1, $2) 
+       ON CONFLICT (blocker_id, blocked_id) DO NOTHING`,
+      [blockerId, blockedId]
+    );
+
+    // 3. Supprimer les likes/matchs existants (Nettoyage)
+    await query(
+      `DELETE FROM likes 
+       WHERE (liker_id = $1 AND liked_id = $2) 
+          OR (liker_id = $2 AND liked_id = $1)`,
+      [blockerId, blockedId]
+    );
+    
+    // Note: Vérifie si tu dois aussi nettoyer la table 'conversations' ou 'profile_visits'
+    // selon tes règles métier.
+
+    res.json({ message: "Utilisateur bloqué avec succès" });
+
+  } catch (error) {
+    console.error('Block user error:', error);
+    res.status(500).json({ error: "Erreur lors du blocage" });
+  }
+};
+
+export const unblockUser = async (req, res) => {
+  const blockerId = req.userId;
+  const { id: blockedId } = req.params;
+
+  try {
+    await query(
+      'DELETE FROM blocks WHERE blocker_id = $1 AND blocked_id = $2',
+      [blockerId, blockedId]
+    );
+
+    res.json({ message: "Utilisateur débloqué" });
+
+  } catch (error) {
+    console.error('Unblock user error:', error);
+    res.status(500).json({ error: "Erreur lors du déblocage" });
   }
 };

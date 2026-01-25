@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 import { chatAPI, notificationAPI } from '../services/api';
@@ -34,12 +34,20 @@ export const useSocket = () => {
 };
 
 export const SocketProvider = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [socket, setSocket] = useState(null);
   const [connected, setConnected] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [notifications, setNotifications] = useState([]);
+  
+  const userIdRef = useRef(null);
+
+  useEffect(() => {
+    if (user) {
+        userIdRef.current = user.id;
+    }
+  }, [user]);
 
   // 1. Charger les compteurs initiaux
   useEffect(() => {
@@ -103,24 +111,26 @@ export const SocketProvider = ({ children }) => {
     newSocket.on('notification', (notification) => {
       console.log('Received notification:', notification);
       
-      // CORRECTION : Séparation stricte des flux
       if (notification.type === 'message') {
-        // Si c'est un message : on incrémente UNIQUEMENT le compteur messages
-        // Et on ne l'ajoute PAS à la liste des notifications générales
         setUnreadMessages(prev => prev + 1);
       } else {
-        // Si c'est autre chose (Like, Visit, Match)
-        // On l'ajoute à la liste ET au compteur notifs
-        setNotifications(prev => [notification, ...prev]);
+        setNotifications(prev => {
+            // Anti-doublon basique sur ID
+            if (prev.some(n => n.id === notification.id)) return prev;
+            return [notification, ...prev];
+        });
         setUnreadNotifications(prev => prev + 1);
       }
     });
 
     newSocket.on('chat:message', (message) => {
+      // FIX NOTIFICATION SOI-MEME
+      // On compare l'ID de l'expéditeur avec notre ID stocké dans la Ref
+      if (userIdRef.current && Number(message.senderId) === Number(userIdRef.current)) {
+        return; // C'est moi, j'ignore la notif
+      }
+
       console.log('Global message received:', message);
-      // On n'incrémente pas si c'est nous qui avons envoyé le message
-      // (Note: on ne vérifie pas l'ID ici car on n'a pas accès à 'user' facilement dans le useEffect sans dépendance,
-      // mais le backend n'envoie 'chat:message' dans la room 'user:X' QUE au destinataire, donc c'est safe).
       setUnreadMessages(prev => prev + 1);
     });
 

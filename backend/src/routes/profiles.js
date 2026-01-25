@@ -697,61 +697,6 @@ router.delete('/:userId/like', async (req, res) => {
 });
 
 /**
- * POST /api/profiles/:userId/block
- * Block a user
- */
-router.post('/:userId/block', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const currentUserId = req.userId;
-
-    if (parseInt(userId) === currentUserId) {
-      return res.status(400).json({ error: 'Cannot block yourself' });
-    }
-
-    // Create block
-    await query(
-      `INSERT INTO blocks (blocker_id, blocked_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-      [currentUserId, userId]
-    );
-
-    // Remove any existing likes in both directions
-    await query(
-      'DELETE FROM likes WHERE (liker_id = $1 AND liked_id = $2) OR (liker_id = $2 AND liked_id = $1)',
-      [currentUserId, userId]
-    );
-
-    res.json({ message: 'User blocked' });
-
-  } catch (error) {
-    console.error('Block error:', error);
-    res.status(500).json({ error: 'Failed to block user' });
-  }
-});
-
-/**
- * DELETE /api/profiles/:userId/block
- * Unblock a user
- */
-router.delete('/:userId/block', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const currentUserId = req.userId;
-
-    await query(
-      'DELETE FROM blocks WHERE blocker_id = $1 AND blocked_id = $2',
-      [currentUserId, userId]
-    );
-
-    res.json({ message: 'User unblocked' });
-
-  } catch (error) {
-    console.error('Unblock error:', error);
-    res.status(500).json({ error: 'Failed to unblock user' });
-  }
-});
-
-/**
  * POST /api/profiles/:userId/report
  * Report a user as fake
  */

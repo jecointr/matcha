@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
-import { chatAPI, eventAPI } from '../services/api';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
+import { chatAPI, eventAPI, profileAPI } from '../services/api';
 import { useSocket } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
 import { 
   Send, Loader, MessageCircle, Circle, ArrowLeft, 
   ChevronLeft, User, Check, CheckCheck, Calendar,
-  MapPin, Clock, Video, Phone
+  MapPin, Clock, Video, Phone, Ban
 } from 'lucide-react';
 import EventModal from '../components/chat/EventModal';
 import VideoCallModal from '../components/chat/VideoCallModal';
@@ -15,6 +15,7 @@ import { useCall } from '../context/CallContext';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const Chat = () => {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   
@@ -53,6 +54,21 @@ const Chat = () => {
   // pour éviter de spammer le socket à chaque touche
   const isTypingRef = useRef(false);
   const typingTimeoutRef = useRef(null);
+
+  const handleBlockUser = async () => {
+    if (!activeConversation || !window.confirm("Êtes-vous sûr de vouloir bloquer cet utilisateur ? Vous ne pourrez plus échanger.")) return;
+
+    try {
+        await profileAPI.block(activeConversation.otherUser.id);
+        alert("Utilisateur bloqué.");
+        // On redirige ou on rafraichit
+        setActiveConversation(null);
+        loadConversations(); // Recharger la liste (la conv devrait disparaitre si le back gère bien)
+    } catch (err) {
+        console.error("Erreur blocage:", err);
+        alert("Erreur lors du blocage.");
+    }
+  };
 
   // Charger les events quand on change de conversation
   useEffect(() => {
@@ -534,6 +550,14 @@ const Chat = () => {
                 title="Start Video Call"
               >
                 <Video className="w-6 h-6" />
+              </button>
+              
+              <button 
+                onClick={handleBlockUser}
+                className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-all duration-200"
+                title="Bloquer cet utilisateur"
+              >
+                <Ban className="w-5 h-5" />
               </button>
             </div>
 

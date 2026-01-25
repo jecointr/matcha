@@ -75,8 +75,8 @@ export const profileAPI = {
   getProfile: (userId) => api.get(`/profiles/${userId}`),
   like: (userId) => api.post(`/profiles/${userId}/like`),
   unlike: (userId) => api.delete(`/profiles/${userId}/like`),
-  block: (userId) => api.post(`/profiles/${userId}/block`),
-  unblock: (userId) => api.delete(`/profiles/${userId}/block`),
+  block: (userId) => api.post(`/users/${userId}/block`),
+  unblock: (userId) => api.delete(`/users/${userId}/block`),
   report: (userId, reason) => api.post(`/profiles/${userId}/report`, { reason })
 };
 

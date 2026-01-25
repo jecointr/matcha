@@ -3,7 +3,7 @@ import { query, queryOne, queryAll, transaction } from '../config/database.js';
 import { authenticate } from '../middlewares/auth.js';
 import { upload, processImage, deleteImage, handleUploadError } from '../middlewares/upload.js';
 import { sanitizeString, isValidEmail, isValidName, sanitizeEmail } from '../utils/validators.js';
-import { deleteAccount } from '../controllers/users.js';
+import { deleteAccount, blockUser, unblockUser } from '../controllers/users.js';
 import xss from 'xss';
 
 const router = Router();
@@ -12,6 +12,8 @@ const router = Router();
 router.use(authenticate);
 
 router.delete('/me', deleteAccount);
+router.post('/:id/block', blockUser);
+router.delete('/:id/block', unblockUser);
 
 /**
  * PUT /api/users/profile
