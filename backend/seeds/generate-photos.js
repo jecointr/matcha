@@ -25,16 +25,13 @@ const pool = new Pool({
 
 const UPLOAD_DIR = path.join(__dirname, '../uploads');
 
-// Ensure upload directory exists
 if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
-// Robust download function handling Redirects & Status Codes
 const downloadImage = (url, filepath) => {
   return new Promise((resolve, reject) => {
     const request = https.get(url, (response) => {
-      // Handle Redirects (301, 302)
       if (response.statusCode === 301 || response.statusCode === 302) {
         if (response.headers.location) {
           downloadImage(response.headers.location, filepath)
@@ -54,7 +51,6 @@ const downloadImage = (url, filepath) => {
 
       file.on('finish', () => {
         file.close();
-        // Verify file size > 0
         try {
             const stats = fs.statSync(filepath);
             if (stats.size === 0) {
@@ -80,8 +76,6 @@ const downloadImage = (url, filepath) => {
   });
 };
 
-// 1. Primary API: DiceBear (Cartoon Avatars)
-// Utilise des paramètres v9.x VALIDÉS pour éviter l'erreur 400
 const getDiceBearUrl = (seed, gender) => {
   const style = 'avataaars';
   const safeSeed = encodeURIComponent(seed);
@@ -89,11 +83,9 @@ const getDiceBearUrl = (seed, gender) => {
   let url = `https://api.dicebear.com/9.x/${style}/jpg?seed=${safeSeed}&size=400`;
 
   if (gender === 'male') {
-    // Hommes : Barbe forcée, coupes courtes validées
     url += '&facialHairProbability=100';
     url += '&top=shortFlat,shortRound,theCaesar,shortCurly'; 
   } else {
-    // Femmes : Pas de barbe, coupes longues validées
     url += '&facialHairProbability=0';
     url += '&top=straight01,straight02,curvy,longButNotTooLong,bob';
   }
@@ -101,7 +93,6 @@ const getDiceBearUrl = (seed, gender) => {
   return url;
 };
 
-// 2. Fallback API: UI Avatars (Initiales) - Indestructible
 const getFallbackUrl = (name) => {
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=400&background=random&color=fff&bold=true&length=1`;
 };
@@ -131,25 +122,21 @@ async function generatePhotos() {
         const filename = `${user.id}_avatar_${Date.now()}.jpg`;
         const filepath = path.join(UPLOAD_DIR, filename);
         
-        // TENTATIVE 1 : DiceBear
         try {
             const avatarUrl = getDiceBearUrl(user.username, user.gender);
             await downloadImage(avatarUrl, filepath);
         } catch (err) {
-            // TENTATIVE 2 : Fallback sur UI Avatars si DiceBear échoue (ex: erreur 400)
             // console.log(`   ⚠️ DiceBear failed for ${user.username} (${err.message}), using fallback...`);
             const fallbackUrl = getFallbackUrl(user.first_name || user.username);
             await downloadImage(fallbackUrl, filepath);
         }
 
-        // Créer miniature (copie simple)
         const thumbFilename = `thumb_${filename}`;
         const thumbPath = path.join(UPLOAD_DIR, thumbFilename);
         if (fs.existsSync(filepath)) {
             fs.copyFileSync(filepath, thumbPath);
         }
 
-        // DB Insert
         await pool.query(`
           INSERT INTO photos (user_id, filename, is_profile_picture)
           VALUES ($1, $2, true)
@@ -158,7 +145,6 @@ async function generatePhotos() {
         created++;
         if (created % 50 === 0) console.log(`   ✓ Generated ${created}/${users.length} photos`);
 
-        // Petit délai pour éviter le rate-limit
         await new Promise(resolve => setTimeout(resolve, 50));
 
       } catch (err) {

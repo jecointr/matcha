@@ -2,7 +2,6 @@ import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
-// Create axios instance
 const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -10,7 +9,6 @@ const api = axios.create({
   }
 });
 
-// Request interceptor - add auth token
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -22,16 +20,13 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor - handle errors
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       
-      // Redirect to login if not already there
       if (window.location.pathname !== '/login') {
         window.location.href = '/login';
       }
@@ -40,7 +35,6 @@ api.interceptors.response.use(
   }
 );
 
-// Auth endpoints
 export const authAPI = {
   register: (data) => api.post('/auth/register', data),
   login: (data) => api.post('/auth/login', data),
@@ -52,7 +46,6 @@ export const authAPI = {
   getMe: () => api.get('/auth/me')
 };
 
-// User endpoints
 export const userAPI = {
   updateProfile: (data) => api.put('/users/profile', data),
   uploadPhoto: (formData) => api.post('/users/photos', formData, {
@@ -67,7 +60,6 @@ export const userAPI = {
   deleteAccount: () => api.delete('/users/me')
 };
 
-// Profile endpoints
 export const profileAPI = {
   getBrowse: (params) => api.get('/profiles/browse', { params }),
   search: (params) => api.get('/profiles/search', { params }),
@@ -80,7 +72,6 @@ export const profileAPI = {
   report: (userId, reason) => api.post(`/profiles/${userId}/report`, { reason })
 };
 
-// Match endpoints
 export const matchAPI = {
   getMatches: () => api.get('/matches'),
   getLikes: () => api.get('/matches/likes'),
@@ -88,7 +79,6 @@ export const matchAPI = {
   getVisits: () => api.get('/matches/visits')
 };
 
-// Chat endpoints
 export const chatAPI = {
   getConversations: () => api.get('/chat/conversations'),
   getConversation: (otherUserId) => api.get(`/chat/conversations/${otherUserId}`),
@@ -99,7 +89,6 @@ export const chatAPI = {
   reactToMessage: (messageId, emoji) => api.post(`/chat/messages/${messageId}/react`, { emoji }),
 };
 
-// Notification endpoints
 export const notificationAPI = {
   getNotifications: (params) => api.get('/notifications', { params }),
   getUnreadCount: () => api.get('/notifications/unread-count'),
@@ -108,13 +97,11 @@ export const notificationAPI = {
   delete: (notificationId) => api.delete(`/notifications/${notificationId}`)
 };
 
-// Tags endpoint
 export const tagsAPI = {
   getAll: () => api.get('/tags'),
   search: (query) => api.get('/tags/search', { params: { q: query } })
 };
 
-// Events endpoints
 export const eventAPI = {
   create: (data) => api.post('/events', data),
   getByUser: (targetId) => api.get(`/events/${targetId}`),

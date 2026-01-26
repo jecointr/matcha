@@ -60,12 +60,10 @@ const Browse = () => {
     try {
       const response = await profileAPI.like(profileId);
       
-      // Update local state
       setProfiles(prev => prev.map(p => 
         p.id === profileId ? { ...p, iLiked: true } : p
       ));
 
-      // Show match alert if it's a match
       if (response.data.isMatch) {
         const profile = profiles.find(p => p.id === profileId);
         setMatchAlert({
@@ -83,7 +81,6 @@ const Browse = () => {
     try {
       await profileAPI.unlike(profileId);
       
-      // Update local state
       setProfiles(prev => prev.map(p => 
         p.id === profileId ? { ...p, iLiked: false } : p
       ));

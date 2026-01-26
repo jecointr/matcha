@@ -140,7 +140,6 @@ router.get('/visits', async (req, res) => {
       ORDER BY u.id, pv.visited_at DESC
     `, [userId]);
 
-    // Sort by most recent visit
     visits.sort((a, b) => new Date(b.visited_at) - new Date(a.visited_at));
 
     res.json({

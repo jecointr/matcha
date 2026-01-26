@@ -11,7 +11,6 @@ const VideoCallModal = () => {
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
 
-  // Vérifier au démarrage si on a de la vidéo (pour mettre l'icône dans le bon état)
   useEffect(() => {
     if (stream) {
         const videoTracks = stream.getVideoTracks();
@@ -31,7 +30,6 @@ const VideoCallModal = () => {
   const toggleCam = () => {
     if (stream) {
         const videoTracks = stream.getVideoTracks();
-        // SÉCURITÉ : On ne toggle que si une piste vidéo existe
         if (videoTracks.length > 0) {
             videoTracks[0].enabled = !camOn;
             setCamOn(!camOn);

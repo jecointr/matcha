@@ -9,7 +9,6 @@ const Login = () => {
   const location = useLocation();
   const { login } = useAuth();
   
-  // Utiliser l'URL de l'API depuis l'environnement (ou fallback)
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
   
   const [formData, setFormData] = useState({
@@ -27,11 +26,8 @@ const Login = () => {
     const urlError = params.get('error');
 
     if (token) {
-      // 1. Stocker le token
       localStorage.setItem('token', token);
       
-      // 2. Force reload pour réinitialiser l'AuthContext et charger le User
-      // C'est une méthode brutale mais efficace pour éviter les problèmes de synchro
       window.location.href = '/browse'; 
     }
 
@@ -40,7 +36,6 @@ const Login = () => {
     }
   }, [location]);
 
-  // Check for success message from email verification
   const successMessage = location.state?.message;
 
   const handleChange = (e) => {
@@ -60,12 +55,10 @@ const Login = () => {
     setLoading(false);
     
     if (result.success) {
-      // Redirect to intended page or home
       const from = location.state?.from?.pathname || '/browse';
       navigate(from, { replace: true });
     } else {
       setError(result.error);
-      // Show resend option if email not verified
       if (result.code === 'EMAIL_NOT_VERIFIED') {
         setShowResend(true);
       }

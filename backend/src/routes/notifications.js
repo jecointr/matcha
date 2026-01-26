@@ -17,7 +17,6 @@ router.get('/', async (req, res) => {
     const { page = 1, limit = 20, unreadOnly = false } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
-    // CORRECTION: On exclut toujours les messages
     let whereClause = "WHERE n.user_id = $1 AND n.type != 'message'";
     
     if (unreadOnly === 'true') {
@@ -42,12 +41,10 @@ router.get('/', async (req, res) => {
       LIMIT $2 OFFSET $3
     `, [userId, parseInt(limit), offset]);
 
-    // Get total count (sans messages)
     const countResult = await queryOne(`
       SELECT COUNT(*)::int as total FROM notifications n ${whereClause}
     `, [userId]);
 
-    // Get unread count (sans messages)
     const unreadResult = await queryOne(`
       SELECT COUNT(*)::int as count 
       FROM notifications n
@@ -94,7 +91,6 @@ router.get('/unread-count', async (req, res) => {
   try {
     const userId = req.userId;
 
-    // CORRECTION: On exclut les messages du compteur de notifs
     const result = await queryOne(`
       SELECT COUNT(*)::int as count 
       FROM notifications 
@@ -148,9 +144,6 @@ router.put('/read-all', async (req, res) => {
   try {
     const userId = req.userId;
 
-    // On marque TOUT comme lu, même les messages cachés, pour nettoyer la DB
-    // Ou on peut restreindre avec AND type != 'message' si tu veux garder les messages "non lus" en DB
-    // Mais généralement "Mark All Read" nettoie tout.
     await query(`
       UPDATE notifications 
       SET is_read = true 

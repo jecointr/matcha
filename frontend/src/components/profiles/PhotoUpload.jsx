@@ -3,7 +3,7 @@ import { Camera, X, Star, Loader, Plus, RotateCw, Check, Image as ImageIcon } fr
 import { useDropzone } from 'react-dropzone';
 import Cropper from 'react-easy-crop';
 import { userAPI } from '../../services/api';
-import getCroppedImg from '../../utils/canvasUtils'; // Assurez-vous que le chemin est bon
+import getCroppedImg from '../../utils/canvasUtils';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -11,7 +11,6 @@ const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   
-  // États pour l'éditeur d'image
   const [imageSrc, setImageSrc] = useState(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -19,7 +18,6 @@ const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
   const [activeFilter, setActiveFilter] = useState(''); // '', 'grayscale(100%)', 'sepia(100%)'
 
-  // --- Gestion du Drag & Drop ---
   const onDrop = useCallback((acceptedFiles) => {
     const file = acceptedFiles[0];
     if (!file) return;
@@ -29,12 +27,10 @@ const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
       return;
     }
 
-    // Lire le fichier pour l'afficher dans l'éditeur
     const reader = new FileReader();
     reader.addEventListener('load', () => {
-      setImageSrc(reader.result); // Ouvre la modale
+      setImageSrc(reader.result);
       setError('');
-      // Reset editor states
       setZoom(1);
       setRotation(0);
       setActiveFilter('');
@@ -49,7 +45,6 @@ const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
     disabled: uploading || photos.length >= maxPhotos
   });
 
-  // --- Logique de l'éditeur ---
   const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
     setCroppedAreaPixels(croppedAreaPixels);
   }, []);
@@ -57,7 +52,6 @@ const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
   const handleSaveEditedImage = async () => {
     try {
       setUploading(true);
-      // 1. Générer le fichier croppé via Canvas
       const croppedBlob = await getCroppedImg(
         imageSrc,
         croppedAreaPixels,
@@ -65,16 +59,12 @@ const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
         activeFilter
       );
       
-      // 2. Préparer l'envoi
       const formData = new FormData();
-      // On nomme le fichier "edited.jpg" car le backend génère son propre nom UUID de toute façon
       formData.append('photo', croppedBlob, 'edited.jpg');
 
-      // 3. Envoyer au backend
       const response = await userAPI.uploadPhoto(formData);
       onUpdate([...photos, response.data.photo]);
       
-      // 4. Fermer la modale
       setImageSrc(null);
     } catch (err) {
       console.error(err);
@@ -89,7 +79,6 @@ const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
     setError('');
   };
 
-  // --- Actions existantes (Suppression / Profile Pic) ---
   const handleDelete = async (photoId) => {
     if (!confirm('Delete this photo?')) return;
     try {
@@ -218,12 +207,12 @@ const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
                 crop={crop}
                 zoom={zoom}
                 rotation={rotation}
-                aspect={1} // Force carré pour les photos de profil
+                aspect={1}
                 onCropChange={setCrop}
                 onCropComplete={onCropComplete}
                 onZoomChange={setZoom}
                 style={{
-                  containerStyle: { filter: activeFilter } // Aperçu visuel du filtre
+                  containerStyle: { filter: activeFilter }
                 }}
               />
             </div>

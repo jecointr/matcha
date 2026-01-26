@@ -15,21 +15,16 @@ const Notifications = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // 1. Initialisation : Chargement + Nettoyage automatique
   useEffect(() => {
     const initNotifications = async () => {
       try {
-        // A. On charge les notifications depuis la BDD
         const response = await notificationAPI.getNotifications({ limit: 50 });
         
-        // CORRECTION CLIENT : On filtre une dernière fois par sécurité
         const filteredNotifs = response.data.notifications.filter(n => n.type !== 'message');
         setNotifications(filteredNotifs);
 
-        // B. On éteint immédiatement la pastille rouge du header (UX)
         clearUnreadNotifications();
 
-        // C. Si on a des notifs non lues, on dit au serveur de les marquer comme lues
         if (response.data.unreadCount > 0) {
           notificationAPI.markAllAsRead()
             .catch(err => console.error('Background auto-read failed:', err));
@@ -45,12 +40,10 @@ const Notifications = () => {
     initNotifications();
   }, []); 
 
-  // 2. Gestion du Temps Réel (Socket)
   useEffect(() => {
     if (!socket) return;
 
     const handleNewNotification = (newNotification) => {
-      // CORRECTION : On ignore les messages qui arrivent pendant qu'on regarde la page
       if (newNotification.type === 'message') return;
 
       setNotifications(prev => [newNotification, ...prev]);
@@ -63,7 +56,6 @@ const Notifications = () => {
     };
   }, [socket]);
 
-  // Actions
   const handleDelete = async (notificationId) => {
     try {
       await notificationAPI.delete(notificationId);
@@ -73,7 +65,6 @@ const Notifications = () => {
     }
   };
 
-  // Helpers d'affichage
   const getNotificationIcon = (type) => {
     switch (type) {
       case 'like':
@@ -162,7 +153,7 @@ const Notifications = () => {
               } ${link ? 'hover:bg-gray-50 cursor-pointer' : ''}`}>
                 
                 {/* Icon or user photo */}
-                <div className="flex-shrink-0">
+                <div className="shrink-0">
                   {notification.fromUser?.profilePicture ? (
                     <div className="relative">
                       <img
@@ -192,7 +183,7 @@ const Notifications = () => {
                 </div>
 
                 {/* Actions (Delete only) */}
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-2 shrink-0">
                   <button
                     onClick={(e) => {
                       e.preventDefault();

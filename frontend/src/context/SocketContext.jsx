@@ -49,7 +49,6 @@ export const SocketProvider = ({ children }) => {
     }
   }, [user]);
 
-  // 1. Charger les compteurs initiaux
   useEffect(() => {
     if (!isAuthenticated) return;
 
@@ -69,7 +68,6 @@ export const SocketProvider = ({ children }) => {
     loadCounts();
   }, [isAuthenticated]);
 
-  // 2. Connexion Socket
   useEffect(() => {
     if (!isAuthenticated) {
       if (socket) {
@@ -107,7 +105,6 @@ export const SocketProvider = ({ children }) => {
       console.error('Socket connection error:', error.message);
     });
 
-    // Gestion centralisée des notifications
     newSocket.on('notification', (notification) => {
       console.log('Received notification:', notification);
       
@@ -115,7 +112,6 @@ export const SocketProvider = ({ children }) => {
         setUnreadMessages(prev => prev + 1);
       } else {
         setNotifications(prev => {
-            // Anti-doublon basique sur ID
             if (prev.some(n => n.id === notification.id)) return prev;
             return [notification, ...prev];
         });
@@ -124,10 +120,8 @@ export const SocketProvider = ({ children }) => {
     });
 
     newSocket.on('chat:message', (message) => {
-      // FIX NOTIFICATION SOI-MEME
-      // On compare l'ID de l'expéditeur avec notre ID stocké dans la Ref
       if (userIdRef.current && Number(message.senderId) === Number(userIdRef.current)) {
-        return; // C'est moi, j'ignore la notif
+        return;
       }
 
       console.log('Global message received:', message);

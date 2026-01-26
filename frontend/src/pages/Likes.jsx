@@ -39,12 +39,10 @@ const Likes = () => {
     try {
       const response = await profileAPI.like(profileId);
       
-      // Update likes list
       setLikes(prev => prev.map(p => 
         p.id === profileId ? { ...p, iLikedBack: true } : p
       ));
 
-      // If match, reload matches
       if (response.data.isMatch) {
         const matchesRes = await matchAPI.getMatches();
         setMatches(matchesRes.data.matches);
@@ -58,10 +56,8 @@ const Likes = () => {
     try {
       await profileAPI.unlike(profileId);
       
-      // Update my likes list
       setMyLikes(prev => prev.filter(p => p.id !== profileId));
       
-      // Reload matches
       const matchesRes = await matchAPI.getMatches();
       setMatches(matchesRes.data.matches);
     } catch (err) {

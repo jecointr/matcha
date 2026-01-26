@@ -14,7 +14,7 @@ const ProfileCard = ({ profile, onLike, onUnlike, compact = false }) => {
   return (
     <div className={`card p-0 overflow-hidden group hover:shadow-lg transition-shadow flex flex-col ${compact ? '' : ''}`}>
       {/* Photo Section */}
-      <Link to={`/profile/${profile.id}`} className="block relative flex-shrink-0">
+      <Link to={`/profile/${profile.id}`} className="block relative shrink-0">
         <div className={`relative ${compact ? 'h-48' : 'h-64'}`}>
           {profile.profilePicture ? (
             <img
@@ -47,12 +47,12 @@ const ProfileCard = ({ profile, onLike, onUnlike, compact = false }) => {
           )}
 
           {/* Hover overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
       </Link>
 
       {/* Info Section - Flex Grow pour pousser le contenu */}
-      <div className="p-4 flex flex-col flex-grow">
+      <div className="p-4 flex flex-col grow">
         
         {/* Header: Name + Fame */}
         <div className="flex justify-between items-start mb-2">
@@ -78,7 +78,7 @@ const ProfileCard = ({ profile, onLike, onUnlike, compact = false }) => {
         </div>
 
         {/* Tags */}
-        <div className="mb-3 min-h-[24px]"> {/* Hauteur min pour éviter le saut si pas de tags */}
+        <div className="mb-3 min-h-6"> {/* Hauteur min pour éviter le saut si pas de tags */}
           {profile.tags && profile.tags.length > 0 && (
             <div className="flex flex-wrap gap-1">
               {profile.tags.slice(0, 3).map(tag => (

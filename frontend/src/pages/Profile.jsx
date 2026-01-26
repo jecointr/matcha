@@ -162,8 +162,8 @@ const Profile = () => {
 
     try {
       await userAPI.deleteAccount();
-      logout(); // Vide le contexte/localstorage
-      navigate('/login'); // Redirige
+      logout();
+      navigate('/login');
     } catch (err) {
       console.error(err);
       setError("Impossible de supprimer le compte.");

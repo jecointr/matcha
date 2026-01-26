@@ -7,7 +7,6 @@ import { queryOne } from '../config/database.js';
  */
 export const authenticate = async (req, res, next) => {
   try {
-    // Get token from header
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -16,14 +15,12 @@ export const authenticate = async (req, res, next) => {
     
     const token = authHeader.split(' ')[1];
     
-    // Verify token
     const decoded = verifyToken(token);
     
     if (!decoded) {
       return res.status(401).json({ error: 'Invalid or expired token' });
     }
     
-    // Get user from database
     const user = await queryOne(
       `SELECT id, email, username, first_name, last_name, is_verified, is_profile_complete,
               gender, sexual_preference, biography, birth_date, latitude, longitude,
@@ -36,7 +33,6 @@ export const authenticate = async (req, res, next) => {
       return res.status(401).json({ error: 'User not found' });
     }
     
-    // Attach user to request
     req.user = user;
     req.userId = user.id;
     
@@ -75,7 +71,6 @@ export const optionalAuth = async (req, res, next) => {
     
     next();
   } catch (error) {
-    // Continue without authentication on error
     next();
   }
 };

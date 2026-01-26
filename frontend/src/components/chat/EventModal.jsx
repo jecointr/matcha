@@ -13,7 +13,6 @@ const EventModal = ({ isOpen, onClose, onSubmit, loading }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Combine date and time
     const dateTime = new Date(`${formData.date}T${formData.time}`);
     onSubmit({
       ...formData,

@@ -7,7 +7,6 @@ const Filters = ({ filters, onChange, onSearch, isSearch = false }) => {
   const [availableTags, setAvailableTags] = useState([]);
   const [localFilters, setLocalFilters] = useState(filters);
 
-  // Initialisation des tags
   useEffect(() => {
     const loadTags = async () => {
       try {
@@ -20,33 +19,29 @@ const Filters = ({ filters, onChange, onSearch, isSearch = false }) => {
 
   useEffect(() => { setLocalFilters(filters); }, [filters]);
 
-  // Helper pour mettre à jour l'état local
   const handleChange = (key, value) => {
     setLocalFilters(prev => ({ ...prev, [key]: value }));
   };
 
-  // GESTION INTELLIGENTE DU TRI
-  // On décompose la valeur "age_asc" en { sortBy: 'age', sortOrder: 'asc' }
   const handleSortSelect = (e) => {
     const value = e.target.value;
-    const [sortBy, sortOrder] = value.split('_'); // ex: 'age_asc' -> ['age', 'asc']
+    const [sortBy, sortOrder] = value.split('_');
     
     const newFilters = { 
       ...localFilters, 
       sortBy, 
-      sortOrder: sortOrder || 'desc' // par défaut desc si pas précisé
+      sortOrder: sortOrder || 'desc'
     };
     
     setLocalFilters(newFilters);
-    onChange(newFilters); // Appel immédiat au parent
+    onChange(newFilters);
   };
 
-  // Génère la valeur actuelle combinée pour le <select>
   const getCurrentSortValue = () => {
     if (localFilters.sortBy === 'age' || localFilters.sortBy === 'fame') {
       return `${localFilters.sortBy}_${localFilters.sortOrder}`;
     }
-    return localFilters.sortBy; // 'match' ou 'distance' ou 'tags'
+    return localFilters.sortBy;
   };
 
   const handleApply = () => {

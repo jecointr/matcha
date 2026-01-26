@@ -9,7 +9,6 @@ const TagSelect = ({ selectedTags = [], onUpdate, maxTags = 10 }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Load available tags
   useEffect(() => {
     const loadTags = async () => {
       try {
@@ -22,13 +21,11 @@ const TagSelect = ({ selectedTags = [], onUpdate, maxTags = 10 }) => {
     loadTags();
   }, []);
 
-  // Filter tags based on search
   const filteredTags = availableTags.filter(tag =>
     tag.name.includes(searchQuery.toLowerCase()) &&
     !selectedTags.find(t => t.id === tag.id)
   );
 
-  // Check if search query could be a new tag
   const canCreateTag = searchQuery.length >= 2 &&
     !availableTags.find(t => t.name === searchQuery.toLowerCase()) &&
     selectedTags.length < maxTags;
@@ -57,10 +54,8 @@ const TagSelect = ({ selectedTags = [], onUpdate, maxTags = 10 }) => {
       const response = await userAPI.createTag(searchQuery);
       const newTag = response.data.tag;
       
-      // Add to available tags
       setAvailableTags(prev => [...prev, newTag]);
       
-      // Select it
       onUpdate([...selectedTags, newTag]);
       setSearchQuery('');
       setShowDropdown(false);

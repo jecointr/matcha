@@ -51,14 +51,11 @@ export const blockUser = async (req, res) => {
   }
 
   try {
-    // 1. Vérifier si l'utilisateur existe
     const userExists = await queryOne('SELECT id FROM users WHERE id = $1', [blockedId]);
     if (!userExists) {
       return res.status(404).json({ error: "Utilisateur introuvable" });
     }
 
-    // 2. Insérer le blocage DANS LA TABLE 'blocks' (et non blocked_users)
-    // Note: Ta table 'blocks' a une contrainte UNIQUE(blocker_id, blocked_id)
     await query(
       `INSERT INTO blocks (blocker_id, blocked_id) 
        VALUES ($1, $2) 
@@ -66,7 +63,6 @@ export const blockUser = async (req, res) => {
       [blockerId, blockedId]
     );
 
-    // 3. Supprimer les likes/matchs existants (Nettoyage)
     await query(
       `DELETE FROM likes 
        WHERE (liker_id = $1 AND liked_id = $2) 
@@ -74,9 +70,6 @@ export const blockUser = async (req, res) => {
       [blockerId, blockedId]
     );
     
-    // Note: Vérifie si tu dois aussi nettoyer la table 'conversations' ou 'profile_visits'
-    // selon tes règles métier.
-
     res.json({ message: "Utilisateur bloqué avec succès" });
 
   } catch (error) {

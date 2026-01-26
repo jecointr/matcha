@@ -50,7 +50,6 @@ const Chat = () => {
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   
-  // --- BEST PRACTICE TYPING ---
   const isTypingRef = useRef(false);
   const typingTimeoutRef = useRef(null);
 
@@ -101,7 +100,6 @@ const Chat = () => {
     }
   };
 
-  // --- ÉCOUTER LA LECTURE DES MESSAGES (TEMPS RÉEL) ---
   useEffect(() => {
     const unsubscribe = onMessagesRead((data) => {
       if (activeConversation && Number(data.conversationId) === Number(activeConversation.id)) {
@@ -114,20 +112,16 @@ const Chat = () => {
     return unsubscribe;
   }, [onMessagesRead, activeConversation]);
 
-  // --- ECOUTER LES REATIONS (NOUVEAU) ---
   useEffect(() => {
     const unsubscribe = onReaction((data) => {
       setMessages(prev => prev.map(msg => {
         if (msg.id === data.messageId) {
-          // Copie des réactions existantes
           let newReactions = msg.reactions ? [...msg.reactions] : [];
           
           if (data.action === 'removed') {
             newReactions = newReactions.filter(r => r.userId !== data.userId);
           } else {
-            // Remove previous reaction from this user if exists
             newReactions = newReactions.filter(r => r.userId !== data.userId);
-            // Add new one
             newReactions.push({ userId: data.userId, emoji: data.emoji });
           }
           return { ...msg, reactions: newReactions };
@@ -150,7 +144,6 @@ const Chat = () => {
     }
   };
 
-  // --- GESTION CLICK REACTION (NOUVEAU) ---
   const handleReaction = async (messageId, emoji) => {
     try {
       await chatAPI.reactToMessage(messageId, emoji);

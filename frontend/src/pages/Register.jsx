@@ -24,7 +24,6 @@ const Register = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    // Clear error when user types
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: null }));
     }
@@ -50,7 +49,6 @@ const Register = () => {
     }
   };
 
-  // Password strength indicator
   const getPasswordStrength = (password) => {
     let strength = 0;
     if (password.length >= 8) strength++;
