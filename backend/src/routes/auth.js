@@ -19,7 +19,6 @@ import {
   sanitizeUsername,
   sanitizeString
 } from '../utils/validators.js';
-import crypto from 'crypto';
 
 const router = Router();
 
@@ -432,12 +431,10 @@ router.get('/me', authenticate, async (req, res) => {
 
 // --- OAUTH ROUTES (VERSION MANUELLE) ---
 
-// 1. Route de départ Google
+// 1. Google Login
 router.get('/google', (req, res) => {
-  const state = crypto.randomBytes(20).toString('hex');
-  // On stocke le state 10 min dans un cookie pour la vérification au retour
-  res.cookie('oauth_state', state, { httpOnly: true, maxAge: 600000 });
-  res.redirect(getGoogleAuthURL(state));
+  // Redirection manuelle vers l'URL Google construite dans lib/oauth.js
+  res.redirect(getGoogleAuthURL());
 });
 
 // 2. Google Callback
