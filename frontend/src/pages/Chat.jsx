@@ -698,42 +698,51 @@ const Chat = () => {
                         </div>
 
                         {/* 2. BULLE DE MESSAGE */}
-                        <div className="relative">
-                            <div className={`px-4 py-2 rounded-2xl ${
-                              msg.isOwn 
-                                ? 'bg-primary-500 text-white rounded-br-md' 
-                                : 'bg-gray-100 text-gray-900 rounded-bl-md'
-                            }`}>
-                              <p className="whitespace-pre-wrap wrap-break-word">{msg.content}</p>
-                            </div>
+                        <div className="relative max-w-full">
+                          <div className={`px-3 py-1.5 rounded-2xl shadow-sm ${
+                            msg.isOwn 
+                              ? 'bg-primary-500 text-white rounded-br-none' 
+                              : 'bg-gray-100 text-gray-900 rounded-bl-none'
+                          }`}>
+                            <div className="relative">
+                              {/* Texte du message */}
+                              <span className="text-[15px] leading-relaxed whitespace-pre-wrap break-words mr-2">
+                                {msg.content}
+                              </span>
 
-                            {/* Affichage des réactions (Pillule en bas) */}
-                            {msg.reactions && msg.reactions.length > 0 && (
-                              <div className={`absolute -bottom-3 ${msg.isOwn ? 'right-0' : 'left-0'} flex`}>
-                                <div className="bg-white border shadow-sm rounded-full px-1.5 py-0.5 flex items-center gap-0.5 text-xs z-10 scale-90 origin-top">
-                                  {msg.reactions.map((r, i) => (
-                                    <span key={i} title={r.userId === user.id ? 'You' : ''}>{r.emoji}</span>
-                                  ))}
-                                  {msg.reactions.length > 3 && <span className="text-gray-500 font-medium pl-1">+{msg.reactions.length}</span>}
-                                </div>
+                              {/* Heure et Coches - Aligné sur la ligne de base du texte */}
+                              <span className={`inline-flex items-baseline gap-1 text-[10px] select-none ${
+                                msg.isOwn ? 'text-primary-100' : 'text-gray-400'
+                              }`}>
+                                <span>{formatTime(msg.createdAt)}</span>
+                                {msg.isOwn && (
+                                  <span className="flex self-center"> {/* Centré verticalement par rapport à l'heure */}
+                                    {msg.status === 'sending' ? (
+                                      <Check className="w-3 h-3 opacity-70" />
+                                    ) : (
+                                      <CheckCheck className={`w-3 h-3 ${msg.isRead ? 'text-blue-300' : 'opacity-70'}`} />
+                                    )}
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Réactions - Positionnées un poil plus bas */}
+                          {msg.reactions && msg.reactions.length > 0 && (
+                            <div className={`absolute -bottom-3 ${msg.isOwn ? 'right-2' : 'left-2'} z-20`}>
+                              <div className="bg-white border border-gray-100 shadow-md rounded-full px-1.5 py-0.5 flex items-center gap-0.5 text-xs transition-transform hover:scale-110 cursor-default">
+                                {msg.reactions.slice(0, 3).map((r, i) => (
+                                  <span key={i}>{r.emoji}</span>
+                                ))}
+                                {msg.reactions.length > 1 && (
+                                  <span className="text-[10px] font-bold text-gray-500 ml-0.5">
+                                    {msg.reactions.length}
+                                  </span>
+                                )}
                               </div>
-                            )}
-
-                            {/* Statut (Coches) */}
-                            <div className={`flex items-center gap-1 mt-1 text-xs text-gray-400 ${
-                              msg.isOwn ? 'justify-end' : ''
-                            }`}>
-                              <span>{formatTime(msg.createdAt)}</span>
-                              {msg.isOwn && (
-                                <>
-                                  {msg.status === 'sending' ? (
-                                    <Check className="w-3 h-3 text-gray-300" />
-                                  ) : (
-                                    <CheckCheck className={`w-3 h-3 ${msg.isRead ? 'text-blue-500' : 'text-gray-400'}`} />
-                                  )}
-                                </>
-                              )}
                             </div>
+                          )}
                         </div>
 
                       </div>
