@@ -238,7 +238,8 @@ router.get('/:conversationId/messages', async (req, res) => {
         content: m.content,
         isRead: m.is_read,
         createdAt: m.created_at,
-        isOwn: m.sender_id === userId
+        isOwn: m.sender_id === userId,
+        reactions: m.reactions
       })),
       hasMore: messages.length === parseInt(limit)
     });

@@ -114,24 +114,27 @@ const Chat = () => {
   }, [onMessagesRead, activeConversation]);
 
   useEffect(() => {
-    const unsubscribe = onReaction((data) => {
-      setMessages(prev => prev.map(msg => {
-        if (msg.id === data.messageId) {
-          let newReactions = msg.reactions ? [...msg.reactions] : [];
-          
-          if (data.action === 'removed') {
-            newReactions = newReactions.filter(r => r.userId !== data.userId);
-          } else {
-            newReactions = newReactions.filter(r => r.userId !== data.userId);
-            newReactions.push({ userId: data.userId, emoji: data.emoji });
-          }
-          return { ...msg, reactions: newReactions };
+  const unsubscribe = onReaction((data) => {
+    setMessages(prev => prev.map(msg => {
+      if (msg.id === data.messageId) {
+        // On récupère les réactions existantes
+        let newReactions = msg.reactions ? [...msg.reactions] : [];
+        
+        // On retire systématiquement l'ancienne réaction de cet utilisateur pour éviter les doublons
+        newReactions = newReactions.filter(r => r.userId !== data.userId);
+        
+        // Si l'action n'est pas une suppression (donc ajout ou update), on ajoute la nouvelle
+        if (data.action !== 'removed' && data.emoji) {
+          newReactions.push({ userId: data.userId, emoji: data.emoji });
         }
-        return msg;
-      }));
-    });
-    return unsubscribe;
-  }, [onReaction]);
+        
+        return { ...msg, reactions: newReactions };
+      }
+      return msg;
+    }));
+  });
+  return unsubscribe;
+}, [onReaction]);
 
   const handleEventStatus = async (eventId, status) => {
     try {
@@ -146,12 +149,34 @@ const Chat = () => {
   };
 
   const handleReaction = async (messageId, emoji) => {
-    try {
-      await chatAPI.reactToMessage(messageId, emoji);
-    } catch (err) {
-      console.error("Failed to react", err);
+  // 1. Mise à jour Optimiste (instantanée pour l'utilisateur actuel)
+  setMessages(prev => prev.map(msg => {
+    if (msg.id === messageId) {
+      let newReactions = msg.reactions ? [...msg.reactions] : [];
+      const existingIdx = newReactions.findIndex(r => r.userId === user.id);
+      
+      if (existingIdx > -1 && newReactions[existingIdx].emoji === emoji) {
+        // Toggle off : on retire si c'est le même
+        newReactions.splice(existingIdx, 1);
+      } else {
+        // Add or Update : on remplace
+        if (existingIdx > -1) newReactions.splice(existingIdx, 1);
+        newReactions.push({ userId: user.id, emoji });
+      }
+      return { ...msg, reactions: newReactions };
     }
-  };
+    return msg;
+  }));
+
+  // 2. Appel API en arrière-plan
+  try {
+    await chatAPI.reactToMessage(messageId, emoji);
+  } catch (err) {
+    console.error("Failed to react", err);
+    // Optionnel : Recharger les messages si l'API échoue pour synchroniser
+    loadMessages(activeConversation.id);
+  }
+};
 
   useEffect(() => {
     loadConversations();
@@ -651,17 +676,15 @@ const Chat = () => {
                       </div>
                     )}
                     
-                    {/* --- STRUCTURE DU MESSAGE TYPE WHATSAPP (Flex Siblings) --- */}
+                    {/* --- STRUCTURE DU MESSAGE TYPE WHATSAPP --- */}
                     <div className={`flex w-full mb-4 group ${msg.isOwn ? 'justify-end' : 'justify-start'}`}>
                       
-                      {/* Inner Container */}
-                      <div className={`flex items-center gap-2 max-w-[70%] ${!msg.isOwn ? 'flex-row-reverse' : ''}`}>
+                      {/* Inner Container : items-center assure le centrage vertical du bouton emoji */}
+                      <div className={`flex items-center gap-2 max-w-[85%] md:max-w-[75%] ${msg.isOwn ? 'flex-row' : 'flex-row-reverse'}`}>
                         
-                        {/* 1. BOUTON DE REACTION - MODIFIÉ ICI */}
+                        {/* 1. BOUTON DE REACTION */}
                         <div className={`relative shrink-0 transition-all duration-200 ${
-                            activeEmojiMenu === msg.id 
-                            ? 'opacity-100' // Reste visible si le menu est ouvert
-                            : 'opacity-0 group-hover:opacity-100' // Invisible par défaut, visible au survol de la ligne "group"
+                            activeEmojiMenu === msg.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                         }`}>
                             <button 
                                 onClick={(e) => {
@@ -675,21 +698,11 @@ const Chat = () => {
                                 <Smile className="w-4 h-4" />
                             </button>
                             
-                            {/* Emoji Picker (Reste inchangé) */}
+                            {/* Emoji Picker */}
                             {activeEmojiMenu === msg.id && (
-                                <div 
-                                    className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white shadow-xl rounded-full px-2 py-1 flex gap-1 border border-gray-100 z-50 animate-in fade-in zoom-in duration-150"
-                                    onClick={(e) => e.stopPropagation()}
-                                >
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white shadow-xl rounded-full px-2 py-1 flex gap-1 border border-gray-100 z-50 animate-in fade-in zoom-in duration-150" onClick={(e) => e.stopPropagation()}>
                                     {['👍', '❤️', '😂', '😮', '😢', '🔥'].map(emoji => (
-                                        <button 
-                                            key={emoji}
-                                            onClick={() => {
-                                                handleReaction(msg.id, emoji);
-                                                setActiveEmojiMenu(null);
-                                            }}
-                                            className="hover:scale-125 transition-transform p-1.5 text-xl leading-none"
-                                        >
+                                        <button key={emoji} onClick={() => { handleReaction(msg.id, emoji); setActiveEmojiMenu(null); }} className="hover:scale-125 transition-transform p-1.5 text-xl leading-none">
                                             {emoji}
                                         </button>
                                     ))}
@@ -698,48 +711,41 @@ const Chat = () => {
                         </div>
 
                         {/* 2. BULLE DE MESSAGE */}
-                        <div className="relative max-w-full">
+                        <div className="relative min-w-0 flex flex-col"> 
                           <div className={`px-3 py-1.5 rounded-2xl shadow-sm ${
                             msg.isOwn 
                               ? 'bg-primary-500 text-white rounded-br-none' 
                               : 'bg-gray-100 text-gray-900 rounded-bl-none'
                           }`}>
-                            <div className="relative">
-                              {/* Texte du message */}
-                              <span className="text-[15px] leading-relaxed whitespace-pre-wrap break-words mr-2">
+                            <div className="block">
+                              {/* break-all pour gérer les chaînes sans espaces */}
+                              <span className="text-[15px] leading-relaxed whitespace-pre-wrap break-all md:wrap-break-word">
                                 {msg.content}
                               </span>
 
-                              {/* Heure et Coches - Aligné sur la ligne de base du texte */}
-                              <span className={`inline-flex items-baseline gap-1 text-[10px] select-none ${
+                              {/* Heure et Coches flottantes en bas à droite */}
+                              <span className={`inline-flex items-baseline gap-1 text-[10px] select-none ml-2 float-right translate-y-1 ${
                                 msg.isOwn ? 'text-primary-100' : 'text-gray-400'
                               }`}>
                                 <span>{formatTime(msg.createdAt)}</span>
                                 {msg.isOwn && (
-                                  <span className="flex self-center"> {/* Centré verticalement par rapport à l'heure */}
-                                    {msg.status === 'sending' ? (
-                                      <Check className="w-3 h-3 opacity-70" />
-                                    ) : (
-                                      <CheckCheck className={`w-3 h-3 ${msg.isRead ? 'text-blue-300' : 'opacity-70'}`} />
-                                    )}
+                                  <span className="flex self-center">
+                                    <CheckCheck className={`w-3 h-3 ${msg.isRead ? 'text-blue-300' : 'opacity-70'}`} />
                                   </span>
                                 )}
                               </span>
+                              <div className="clear-both"></div>
                             </div>
                           </div>
 
-                          {/* Réactions - Positionnées un poil plus bas */}
+                          {/* Réactions */}
                           {msg.reactions && msg.reactions.length > 0 && (
                             <div className={`absolute -bottom-3 ${msg.isOwn ? 'right-2' : 'left-2'} z-20`}>
-                              <div className="bg-white border border-gray-100 shadow-md rounded-full px-1.5 py-0.5 flex items-center gap-0.5 text-xs transition-transform hover:scale-110 cursor-default">
+                              <div className="bg-white border border-gray-100 shadow-md rounded-full px-1.5 py-0.5 flex items-center gap-0.5 text-xs transition-all duration-300 ease-out animate-in zoom-in-50 cursor-default">
                                 {msg.reactions.slice(0, 3).map((r, i) => (
                                   <span key={i}>{r.emoji}</span>
                                 ))}
-                                {msg.reactions.length > 1 && (
-                                  <span className="text-[10px] font-bold text-gray-500 ml-0.5">
-                                    {msg.reactions.length}
-                                  </span>
-                                )}
+                                {msg.reactions.length > 1 && <span className="text-[10px] font-bold text-gray-500 ml-0.5">{msg.reactions.length}</span>}
                               </div>
                             </div>
                           )}
