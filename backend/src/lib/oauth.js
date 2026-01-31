@@ -49,7 +49,7 @@ export const handleOAuthUser = async (provider, profile) => {
   return newUser;
 };
 
-export const getGoogleAuthURL = () => {
+export const getGoogleAuthURL = (state) => {
   const rootUrl = 'https://accounts.google.com/o/oauth2/v2/auth';
   const options = {
     redirect_uri: `${process.env.API_URL || 'http://localhost:3000'}/api/auth/google/callback`,
@@ -61,6 +61,7 @@ export const getGoogleAuthURL = () => {
       'https://www.googleapis.com/auth/userinfo.profile',
       'https://www.googleapis.com/auth/userinfo.email',
     ].join(' '),
+    state,
   };
   return `${rootUrl}?${new URLSearchParams(options).toString()}`;
 };
@@ -90,12 +91,13 @@ export const getGoogleUser = async (code) => {
   };
 };
 
-export const getGithubAuthURL = () => {
+export const getGithubAuthURL = (state) => {
   const rootUrl = 'https://github.com/login/oauth/authorize';
   const options = {
     client_id: process.env.GITHUB_CLIENT_ID,
     redirect_uri: `${process.env.API_URL || 'http://localhost:3000'}/api/auth/github/callback`,
     scope: 'user:email',
+    state,
   };
   return `${rootUrl}?${new URLSearchParams(options).toString()}`;
 };
