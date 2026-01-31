@@ -46,6 +46,7 @@ const Chat = () => {
   const [showEventModal, setShowEventModal] = useState(false);
   const [events, setEvents] = useState([]);
   const [creatingEvent, setCreatingEvent] = useState(false);
+  const [activeEmojiMenu, setActiveEmojiMenu] = useState(null);
   
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -246,6 +247,14 @@ const Chat = () => {
     });
     return unsubscribe;
   }, [onTyping, activeConversation]);
+
+  useEffect(() => {
+  const handleClickOutside = () => setActiveEmojiMenu(null);
+  if (activeEmojiMenu) {
+    window.addEventListener('click', handleClickOutside);
+  }
+  return () => window.removeEventListener('click', handleClickOutside);
+}, [activeEmojiMenu]);
 
   const loadConversations = async () => {
     try {
@@ -645,30 +654,47 @@ const Chat = () => {
                     {/* --- STRUCTURE DU MESSAGE TYPE WHATSAPP (Flex Siblings) --- */}
                     <div className={`flex w-full mb-4 group ${msg.isOwn ? 'justify-end' : 'justify-start'}`}>
                       
-                      {/* Inner Container: Si c'est à nous, c'est l'ordre naturel [Smiley][Bulle] (aligné droite) 
-                          Si c'est l'autre, on inverse [Bulle][Smiley] pour que le smiley soit à droite de la bulle */}
+                      {/* Inner Container */}
                       <div className={`flex items-center gap-2 max-w-[70%] ${!msg.isOwn ? 'flex-row-reverse' : ''}`}>
-                         
-                        {/* 1. BOUTON DE REACTION (Toujours en premier dans le DOM, l'ordre visuel est géré par flex) */}
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity relative shrink-0">
-                            <div className="relative group/emoji">
-                                <button className="p-1.5 text-gray-400 hover:text-yellow-500 hover:bg-gray-100 rounded-full transition-colors">
-                                    <Smile className="w-4 h-4" />
-                                </button>
-                                
-                                {/* Emoji Picker (Popup vers le haut) */}
-                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white shadow-xl rounded-full px-2 py-1 flex gap-1 hidden group-hover/emoji:flex border border-gray-100 z-50">
+                        
+                        {/* 1. BOUTON DE REACTION - MODIFIÉ ICI */}
+                        <div className={`relative shrink-0 transition-all duration-200 ${
+                            activeEmojiMenu === msg.id 
+                            ? 'opacity-100' // Reste visible si le menu est ouvert
+                            : 'opacity-0 group-hover:opacity-100' // Invisible par défaut, visible au survol de la ligne "group"
+                        }`}>
+                            <button 
+                                onClick={(e) => {
+                                    e.stopPropagation(); 
+                                    setActiveEmojiMenu(activeEmojiMenu === msg.id ? null : msg.id);
+                                }}
+                                className={`p-1.5 rounded-full transition-colors ${
+                                    activeEmojiMenu === msg.id ? 'text-yellow-500 bg-gray-100' : 'text-gray-400 hover:text-yellow-500 hover:bg-gray-100'
+                                }`}
+                            >
+                                <Smile className="w-4 h-4" />
+                            </button>
+                            
+                            {/* Emoji Picker (Reste inchangé) */}
+                            {activeEmojiMenu === msg.id && (
+                                <div 
+                                    className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white shadow-xl rounded-full px-2 py-1 flex gap-1 border border-gray-100 z-50 animate-in fade-in zoom-in duration-150"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
                                     {['👍', '❤️', '😂', '😮', '😢', '🔥'].map(emoji => (
                                         <button 
                                             key={emoji}
-                                            onClick={() => handleReaction(msg.id, emoji)}
+                                            onClick={() => {
+                                                handleReaction(msg.id, emoji);
+                                                setActiveEmojiMenu(null);
+                                            }}
                                             className="hover:scale-125 transition-transform p-1.5 text-xl leading-none"
                                         >
                                             {emoji}
                                         </button>
                                     ))}
                                 </div>
-                            </div>
+                            )}
                         </div>
 
                         {/* 2. BULLE DE MESSAGE */}
