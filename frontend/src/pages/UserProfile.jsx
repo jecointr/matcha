@@ -141,7 +141,7 @@ const UserProfile = () => {
     <div className="max-w-4xl mx-auto">
       {/* Match alert */}
       {matchAlert && (
-        <div className="mb-6 p-4 bg-gradient-to-r from-primary-500 to-pink-500 text-white rounded-lg animate-fade-in">
+        <div className="mb-6 p-4 bg-linear-to-r from-primary-500 to-pink-500 text-white rounded-lg animate-fade-in">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="text-3xl">🎉</div>
@@ -167,7 +167,7 @@ const UserProfile = () => {
       <div className="card p-0 overflow-hidden">
         {/* Photo gallery */}
         <div className="relative bg-gray-100">
-          <div className="aspect-[4/3] sm:aspect-[16/9]">
+          <div className="aspect-4/3 sm:aspect-video">
             {profile.photos && profile.photos.length > 0 ? (
               <img
                 src={getPhotoUrl(profile.photos[currentPhotoIndex]?.url)}

@@ -113,7 +113,7 @@ const MapPage = () => {
       <button
         onClick={handleLocateMe}
         disabled={locating}
-        className="absolute top-4 right-4 z-[400] bg-white p-3 rounded-full shadow-md hover:bg-gray-50 transition-colors"
+        className="absolute top-4 right-4 z400 bg-white p-3 rounded-full shadow-md hover:bg-gray-50 transition-colors"
         title="Update my precise location"
       >
         {locating ? (
