@@ -149,7 +149,7 @@ const Login = () => {
             </Link>
           </div>
 
-          <Button type="submit" loading={loading} className="w-full">
+          <Button type="submit" loading={loading} className="w-full cursor-pointer">
             Sign In
           </Button>
         </form>

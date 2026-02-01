@@ -25,7 +25,6 @@ export const useSocket = () => {
       clearUnreadMessages: () => {},
       clearUnreadNotifications: () => {},
       clearNotification: () => {},
-      onTyping: () => () => {},
       sendReadSignal: () => {}, 
       onMessagesRead: () => () => {},
     };
@@ -236,7 +235,6 @@ export const SocketProvider = ({ children }) => {
     clearUnreadMessages,
     clearUnreadNotifications,
     clearNotification,
-    onTyping,
     sendReadSignal,
     onMessagesRead: useCallback((callback) => {
       if (socket) {
