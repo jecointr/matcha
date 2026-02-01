@@ -724,13 +724,17 @@ const Chat = () => {
                               </span>
 
                               {/* Heure et Coches flottantes en bas à droite */}
-                              <span className={`inline-flex items-baseline gap-1 text-[10px] select-none ml-2 float-right translate-y-1 ${
+                              <span className={`inline-flex items-baseline gap-1 text-[11px] select-none ml-2 float-right translate-y-2 ${
                                 msg.isOwn ? 'text-primary-100' : 'text-gray-400'
                               }`}>
                                 <span>{formatTime(msg.createdAt)}</span>
                                 {msg.isOwn && (
                                   <span className="flex self-center">
-                                    <CheckCheck className={`w-3 h-3 ${msg.isRead ? 'text-blue-300' : 'opacity-70'}`} />
+                                    <CheckCheck className={`w-4 h-4 ${
+                                      msg.isRead 
+                                        ? 'text-blue-300 drop-shadow-[0_0_3px_rgba(0,242,255,0.5)]' 
+                                        : 'opacity-70'
+                                    }`} />
                                   </span>
                                 )}
                               </span>
@@ -740,7 +744,7 @@ const Chat = () => {
 
                           {/* Réactions */}
                           {msg.reactions && msg.reactions.length > 0 && (
-                            <div className={`absolute -bottom-3 ${msg.isOwn ? 'right-2' : 'left-2'} z-20`}>
+                            <div className={`absolute -bottom-3.5 ${msg.isOwn ? 'right-2' : 'left-2'} z-20`}>
                               <div className="bg-white border border-gray-100 shadow-md rounded-full px-1.5 py-0.5 flex items-center gap-0.5 text-xs transition-all duration-300 ease-out animate-in zoom-in-50 cursor-default">
                                 {msg.reactions.slice(0, 3).map((r, i) => (
                                   <span key={i}>{r.emoji}</span>
