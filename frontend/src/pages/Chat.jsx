@@ -54,6 +54,8 @@ const Chat = () => {
   
   const isTypingRef = useRef(false);
   const typingTimeoutRef = useRef(null);
+  // MODIF : Ajout d'une ref pour stocker les timeouts d'auto-kill de la bulle
+  const typingTimeouts = useRef({}); 
 
   const handleBlockUser = async () => {
     if (!activeConversation || !window.confirm("Êtes-vous sûr de vouloir bloquer cet utilisateur ? Vous ne pourrez plus échanger.")) return;
@@ -118,17 +120,11 @@ const Chat = () => {
   const unsubscribe = onReaction((data) => {
     setMessages(prev => prev.map(msg => {
       if (msg.id === data.messageId) {
-        // On récupère les réactions existantes
         let newReactions = msg.reactions ? [...msg.reactions] : [];
-        
-        // On retire systématiquement l'ancienne réaction de cet utilisateur pour éviter les doublons
         newReactions = newReactions.filter(r => r.userId !== data.userId);
-        
-        // Si l'action n'est pas une suppression (donc ajout ou update), on ajoute la nouvelle
         if (data.action !== 'removed' && data.emoji) {
           newReactions.push({ userId: data.userId, emoji: data.emoji });
         }
-        
         return { ...msg, reactions: newReactions };
       }
       return msg;
@@ -150,17 +146,14 @@ const Chat = () => {
   };
 
   const handleReaction = async (messageId, emoji) => {
-  // 1. Mise à jour Optimiste (instantanée pour l'utilisateur actuel)
   setMessages(prev => prev.map(msg => {
     if (msg.id === messageId) {
       let newReactions = msg.reactions ? [...msg.reactions] : [];
       const existingIdx = newReactions.findIndex(r => r.userId === user.id);
       
       if (existingIdx > -1 && newReactions[existingIdx].emoji === emoji) {
-        // Toggle off : on retire si c'est le même
         newReactions.splice(existingIdx, 1);
       } else {
-        // Add or Update : on remplace
         if (existingIdx > -1) newReactions.splice(existingIdx, 1);
         newReactions.push({ userId: user.id, emoji });
       }
@@ -169,12 +162,10 @@ const Chat = () => {
     return msg;
   }));
 
-  // 2. Appel API en arrière-plan
   try {
     await chatAPI.reactToMessage(messageId, emoji);
   } catch (err) {
     console.error("Failed to react", err);
-    // Optionnel : Recharger les messages si l'API échoue pour synchroniser
     loadMessages(activeConversation.id);
   }
 };
@@ -205,6 +196,8 @@ const Chat = () => {
       return () => {
         leaveChat(activeConversation.id);
         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        // MODIF : Nettoyage des timers fantômes de la bulle à la fermeture du chat
+        Object.values(typingTimeouts.current).forEach(clearTimeout); 
       };
     }
   }, [activeConversation?.id]);
@@ -257,12 +250,29 @@ const Chat = () => {
     return unsubscribe;
   }, [onChatMessage, activeConversation, user.id]);
 
+  // MODIFIÉ ICI : La gestion de la bulle blindée
   useEffect(() => {
     const unsubscribe = onTyping((data) => {
-      if (data.conversationId === activeConversation?.id) {
+      // Sécurité sur le type
+      if (Number(data.conversationId) === Number(activeConversation?.id)) {
         if (data.type === 'typing:start') {
           setTypingUsers(prev => ({ ...prev, [data.userId]: true }));
+          // Forcer le scroll pour bien voir la bulle quand elle apparaît en bas
+          setTimeout(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, 50);
+
+          // AUTO-KILL : Destruction de la bulle après 3s sans nouvelle (évite le bug du "en train d'écrire à l'infini")
+          if (typingTimeouts.current[data.userId]) clearTimeout(typingTimeouts.current[data.userId]);
+          typingTimeouts.current[data.userId] = setTimeout(() => {
+            setTypingUsers(prev => {
+              const next = { ...prev };
+              delete next[data.userId];
+              return next;
+            });
+          }, 3000);
+
         } else {
+          // Arrêt normal
+          if (typingTimeouts.current[data.userId]) clearTimeout(typingTimeouts.current[data.userId]);
           setTypingUsers(prev => {
             const next = { ...prev };
             delete next[data.userId];
@@ -342,9 +352,9 @@ const Chat = () => {
 
     setSending(true);
     const content = newMessage.trim();
-    const currentReply = replyingTo; // <-- On sauvegarde la cible
+    const currentReply = replyingTo; 
     setNewMessage('');
-    setReplyingTo(null); // <-- On ferme la preview instantanément
+    setReplyingTo(null); 
     
     const tempId = Date.now();
     
@@ -356,8 +366,10 @@ const Chat = () => {
       createdAt: new Date().toISOString(),
       isOwn: true,
       status: 'sending',
-      replyToId: currentReply?.id || null, // <-- Ajout pour affichage optimiste
+      replyToId: currentReply?.id || null, 
       replyContent: currentReply?.content || null, 
+      // MODIF: On récupère l'ID pour savoir de qui vient la citation
+      replySenderId: currentReply?.senderId || null, 
       replySenderName: currentReply ? (currentReply.isOwn ? 'Vous' : currentReply.senderName) : null
     };
 
@@ -365,7 +377,6 @@ const Chat = () => {
     scrollToBottom();
 
     try {
-      // <-- MODIFIÉ : On passe l'ID de réponse à l'API
       const response = await chatAPI.sendMessage(activeConversation.id, content, currentReply?.id);
       
       setMessages(prev => prev.map(msg => 
@@ -389,12 +400,13 @@ const Chat = () => {
       console.error('Failed to send message:', err);
       setMessages(prev => prev.filter(msg => msg.id !== tempId));
       setNewMessage(content); 
-      if (currentReply) setReplyingTo(currentReply); // <-- Restaure si erreur
+      if (currentReply) setReplyingTo(currentReply); 
     } finally {
       setSending(false);
     }
   };
 
+  // MODIFIÉ ICI : On spamme le ping "je tape" pour la stabilité au lieu de ne l'envoyer qu'une seule fois
   const handleTyping = (e) => {
     const value = e.target.value;
     setNewMessage(value);
@@ -408,10 +420,7 @@ const Chat = () => {
       return;
     }
 
-    if (!isTypingRef.current) {
-      startTyping(activeConversation.id);
-      isTypingRef.current = true;
-    }
+    startTyping(activeConversation.id);
 
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
@@ -419,7 +428,6 @@ const Chat = () => {
     
     typingTimeoutRef.current = setTimeout(() => {
       stopTyping(activeConversation.id);
-      isTypingRef.current = false;
     }, 2000);
   };
 
@@ -749,9 +757,10 @@ const Chat = () => {
                                   msg.isOwn ? 'bg-primary-600 border-primary-300' : 'bg-gray-200 border-gray-400'
                                 }`}>
                                   <span className={`font-bold block mb-0.5 ${msg.isOwn ? 'text-white' : 'text-gray-700'}`}>
-                                    {msg.replySenderName || 'Utilisateur'}
+                                    {msg.replySenderId === user.id ? 'Vous' : (msg.replySenderName || 'Utilisateur')}
                                   </span>
-                                  <p className={`truncate max-w-50 sm:max-w-62.5 ${msg.isOwn ? 'text-primary-100' : 'text-gray-500'}`}>
+                                  {/* MODIF : Ajout de line-clamp pour que le texte ne casse pas la bulle */}
+                                  <p className={`line-clamp-2 max-h-10 overflow-hidden max-w-[200px] sm:max-w-[250px] ${msg.isOwn ? 'text-primary-100' : 'text-gray-500'}`}>
                                     {msg.replyContent}
                                   </p>
                                 </div>
@@ -819,16 +828,17 @@ const Chat = () => {
 
             {/* PREVIEW DE REPONSE (NOUVEAU) */}
             {replyingTo && (
-              <div className="px-4 py-2 bg-gray-50 border-t flex items-center justify-between animate-in slide-in-from-bottom-2 duration-200">
+              <div className="px-4 py-2 bg-gray-50 border-t flex items-start justify-between animate-in slide-in-from-bottom-2 duration-200 max-h-24 overflow-hidden">
                 <div className="flex-1 min-w-0 border-l-4 border-primary-500 pl-3">
-                  <span className="text-xs font-bold text-primary-600 flex items-center gap-1">
+                  <span className="text-xs font-bold text-primary-600 flex items-center gap-1 mb-1">
                     <Reply className="w-3 h-3" /> Répondre à {replyingTo.isOwn ? 'vous-même' : replyingTo.senderName || 'l\'utilisateur'}
                   </span>
-                  <p className="text-sm text-gray-600 truncate">{replyingTo.content}</p>
+                  {/* MODIF : Ajout de line-clamp pour limiter à 2 lignes */}
+                  <p className="text-sm text-gray-600 line-clamp-2 overflow-hidden">{replyingTo.content}</p>
                 </div>
                 <button 
                   onClick={() => setReplyingTo(null)}
-                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-full ml-2 transition-colors"
+                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-full ml-2 transition-colors shrink-0"
                 >
                   <X className="w-4 h-4" />
                 </button>

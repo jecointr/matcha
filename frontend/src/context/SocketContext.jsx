@@ -107,7 +107,16 @@ export const SocketProvider = ({ children }) => {
     newSocket.on('notification', (notification) => {
       console.log('Received notification:', notification);
       
+      // MODIFICATION 1 : Vérifier si l'utilisateur est DÉJÀ sur le chat en question
+      const url = new URL(window.location.href);
+      const isChat = url.pathname === '/chat';
+      const activeChatId = url.searchParams.get('id');
+
       if (notification.type === 'message') {
+        // Si on est déjà sur le chat, on ignore totalement la notif (pas de +1)
+        if (isChat && Number(activeChatId) === Number(notification.data?.conversationId)) {
+          return;
+        }
         setUnreadMessages(prev => prev + 1);
       } else {
         setNotifications(prev => {
@@ -121,6 +130,15 @@ export const SocketProvider = ({ children }) => {
     newSocket.on('chat:message', (message) => {
       if (userIdRef.current && Number(message.senderId) === Number(userIdRef.current)) {
         return;
+      }
+
+      // MODIFICATION 2 : On fait la même vérification pour le compteur global de messages
+      const url = new URL(window.location.href);
+      const isChat = url.pathname === '/chat';
+      const activeChatId = url.searchParams.get('id');
+      
+      if (isChat && Number(activeChatId) === Number(message.conversationId || message.conversation_id)) {
+        return; 
       }
 
       console.log('Global message received:', message);
