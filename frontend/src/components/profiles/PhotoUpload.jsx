@@ -107,13 +107,13 @@ const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
   };
 
   return (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
+    <div className="transition-colors duration-200">
+      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 transition-colors">
         Photos ({photos.length}/{maxPhotos})
       </label>
 
       {error && (
-        <div className="mb-3 p-2 bg-red-50 text-red-600 text-sm rounded">
+        <div className="mb-3 p-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded transition-colors animate-fade-in">
           {error}
         </div>
       )}
@@ -125,10 +125,10 @@ const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
             <img
               src={getPhotoUrl(photo)}
               alt="Profile photo"
-              className="w-full h-full object-cover rounded-lg shadow-sm"
+              className="w-full h-full object-cover rounded-lg shadow-sm border dark:border-gray-800 transition-colors"
             />
             {photo.isProfilePicture && (
-              <div className="absolute top-1 left-1 bg-primary-500 text-white p-1 rounded-full shadow-md">
+              <div className="absolute top-1 left-1 bg-primary-500 text-white p-1 rounded-full shadow-md z-10">
                 <Star className="w-3 h-3" fill="currentColor" />
               </div>
             )}
@@ -136,7 +136,7 @@ const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
               {!photo.isProfilePicture && (
                 <button
                   onClick={() => handleSetProfilePicture(photo.id)}
-                  className="p-2 bg-white rounded-full text-gray-700 hover:bg-gray-100"
+                  className="p-2 bg-white rounded-full text-gray-700 hover:bg-gray-100 cursor-pointer transition-transform hover:scale-110"
                   title="Set as profile picture"
                 >
                   <Star className="w-4 h-4" />
@@ -144,7 +144,7 @@ const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
               )}
               <button
                 onClick={() => handleDelete(photo.id)}
-                className="p-2 bg-white rounded-full text-red-500 hover:bg-red-50"
+                className="p-2 bg-white rounded-full text-red-500 hover:bg-red-50 cursor-pointer transition-transform hover:scale-110"
                 title="Delete"
               >
                 <X className="w-4 h-4" />
@@ -160,10 +160,10 @@ const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
             className={`
               aspect-square border-2 border-dashed rounded-lg
               flex flex-col items-center justify-center cursor-pointer
-              transition-colors relative overflow-hidden
+              transition-all duration-200 relative overflow-hidden
               ${isDragActive 
-                ? 'border-primary-500 bg-primary-50' 
-                : 'border-gray-300 hover:border-primary-500 hover:bg-gray-50'
+                ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/10' 
+                : 'border-gray-300 dark:border-gray-700 hover:border-primary-500 dark:hover:border-primary-400 hover:bg-gray-50 dark:hover:bg-gray-800/30'
               }
               ${uploading ? 'opacity-50 pointer-events-none' : ''}
             `}
@@ -173,8 +173,8 @@ const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
               <Loader className="w-6 h-6 text-primary-500 animate-spin" />
             ) : (
               <>
-                <Plus className={`w-6 h-6 ${isDragActive ? 'text-primary-500' : 'text-gray-400'}`} />
-                <span className="text-xs text-gray-500 mt-1 text-center px-2">
+                <Plus className={`w-6 h-6 transition-colors ${isDragActive ? 'text-primary-500' : 'text-gray-400 dark:text-gray-500'}`} />
+                <span className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-center px-2">
                   {isDragActive ? 'Drop here' : 'Add / Drop'}
                 </span>
               </>
@@ -183,19 +183,19 @@ const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
         )}
       </div>
 
-      <p className="text-xs text-gray-500 mt-2">
+      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 italic transition-colors">
         Drag and drop supported. Click star to set main photo.
       </p>
 
       {/* --- MODALE D'ÉDITION --- */}
       {imageSrc && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl overflow-hidden w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-gray-900 rounded-xl overflow-hidden w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh] transition-colors border dark:border-gray-800">
             
             {/* Header */}
-            <div className="flex justify-between items-center p-4 border-b">
-              <h3 className="font-semibold text-gray-800">Edit Photo</h3>
-              <button onClick={handleCloseEditor} className="text-gray-500 hover:text-gray-700">
+            <div className="flex justify-between items-center p-4 border-b dark:border-gray-800 transition-colors">
+              <h3 className="font-semibold text-gray-800 dark:text-white transition-colors">Edit Photo</h3>
+              <button onClick={handleCloseEditor} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 cursor-pointer transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -218,13 +218,13 @@ const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
             </div>
 
             {/* Contrôles */}
-            <div className="p-4 space-y-4 bg-gray-50 flex-1 overflow-y-auto">
+            <div className="p-4 space-y-4 bg-gray-50 dark:bg-gray-800/50 flex-1 overflow-y-auto transition-colors duration-200">
               
               {/* Zoom & Rotation */}
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <ImageIcon className="w-4 h-4 text-gray-500" />
-                  <span className="text-xs font-medium w-12">Zoom</span>
+                  <ImageIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                  <span className="text-xs font-medium w-12 dark:text-gray-300 transition-colors">Zoom</span>
                   <input
                     type="range"
                     min={1}
@@ -232,12 +232,12 @@ const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
                     step={0.1}
                     value={zoom}
                     onChange={(e) => setZoom(Number(e.target.value))}
-                    className="flex-1 h-1.5 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-primary-600"
+                    className="flex-1 h-1.5 bg-gray-300 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary-600"
                   />
                 </div>
                 <div className="flex items-center gap-3">
-                  <RotateCw className="w-4 h-4 text-gray-500" />
-                  <span className="text-xs font-medium w-12">Rotate</span>
+                  <RotateCw className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                  <span className="text-xs font-medium w-12 dark:text-gray-300 transition-colors">Rotate</span>
                   <input
                     type="range"
                     min={0}
@@ -245,7 +245,7 @@ const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
                     step={1}
                     value={rotation}
                     onChange={(e) => setRotation(Number(e.target.value))}
-                    className="flex-1 h-1.5 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-primary-600"
+                    className="flex-1 h-1.5 bg-gray-300 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary-600"
                   />
                 </div>
               </div>
@@ -261,10 +261,10 @@ const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
                     key={f.name}
                     onClick={() => setActiveFilter(f.value)}
                     className={`
-                      px-3 py-1 text-xs rounded-full border transition-colors
+                      px-3 py-1 text-xs rounded-full border transition-all cursor-pointer
                       ${activeFilter === f.value 
-                        ? 'bg-gray-800 text-white border-gray-800' 
-                        : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
+                        ? 'bg-primary-600 text-white border-primary-600 shadow-sm' 
+                        : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:border-primary-500'
                       }
                     `}
                   >
@@ -275,10 +275,10 @@ const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
             </div>
 
             {/* Footer Actions */}
-            <div className="p-4 border-t bg-white flex justify-end gap-3">
+            <div className="p-4 border-t dark:border-gray-800 bg-white dark:bg-gray-900 flex justify-end gap-3 transition-colors duration-200">
               <button 
                 onClick={handleCloseEditor}
-                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+                className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg cursor-pointer transition-colors"
                 disabled={uploading}
               >
                 Cancel
@@ -286,7 +286,7 @@ const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
               <button
                 onClick={handleSaveEditedImage}
                 disabled={uploading}
-                className="px-4 py-2 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-lg flex items-center gap-2 disabled:opacity-50"
+                className="px-6 py-2 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-lg flex items-center gap-2 disabled:opacity-50 cursor-pointer shadow-md transition-all active:scale-95"
               >
                 {uploading ? (
                   <>

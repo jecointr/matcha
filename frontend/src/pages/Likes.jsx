@@ -107,36 +107,39 @@ const Likes = () => {
   const data = getCurrentData();
 
   return (
-    <div>
+    <div className="transition-colors duration-200">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
-        <Link to="/browse" className="p-2 hover:bg-gray-100 rounded-lg">
+        <Link 
+          to="/browse" 
+          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg transition-colors cursor-pointer"
+        >
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Likes & Matches</h1>
-          <p className="text-gray-500">See who's interested in you</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white transition-colors">Likes & Matches</h1>
+          <p className="text-gray-500 dark:text-gray-400 transition-colors">See who's interested in you</p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b mb-6">
+      <div className="flex border-b dark:border-gray-800 mb-6 transition-colors">
         {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${
+            className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-all cursor-pointer ${
               activeTab === tab.id
                 ? 'border-primary-500 text-primary-500'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
             }`}
           >
             {tab.label}
             {tab.count > 0 && (
-              <span className={`px-2 py-0.5 rounded-full text-xs ${
+              <span className={`px-2 py-0.5 rounded-full text-xs transition-colors ${
                 activeTab === tab.id
-                  ? 'bg-primary-100 text-primary-700'
-                  : 'bg-gray-100 text-gray-600'
+                  ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
               }`}>
                 {tab.count}
               </span>
@@ -150,24 +153,24 @@ const Likes = () => {
 
       {/* Content */}
       {data.length === 0 ? (
-        <div className="text-center py-20">
-          <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-700 mb-2">
+        <div className="text-center py-20 animate-fade-in">
+          <Heart className="w-16 h-16 text-gray-300 dark:text-gray-700 mx-auto mb-4 transition-colors" />
+          <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2 transition-colors">
             {activeTab === 'received' && 'No likes yet'}
             {activeTab === 'matches' && 'No matches yet'}
             {activeTab === 'sent' && 'You haven\'t liked anyone yet'}
           </h3>
-          <p className="text-gray-500 mb-4">
+          <p className="text-gray-500 dark:text-gray-400 mb-6 transition-colors">
             {activeTab === 'received' && 'When someone likes your profile, they\'ll appear here'}
             {activeTab === 'matches' && 'When you match with someone, they\'ll appear here'}
             {activeTab === 'sent' && 'Start browsing to find people you like'}
           </p>
-          <Link to="/browse" className="btn-primary">
+          <Link to="/browse" className="btn-primary inline-block">
             Browse Profiles
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-fade-in">
           {data.map(profile => (
             <ProfileCard
               key={profile.id}
