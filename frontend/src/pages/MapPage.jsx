@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { Link } from 'react-router-dom';
-import { profileAPI, userAPI } from '../services/api'; // userAPI pour mettre à jour la loc
+import { profileAPI, userAPI } from '../services/api'; 
 import { Loader, MapPin, Navigation } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
-// Fix pour les icônes Leaflet par défaut qui buggent avec Vite/Webpack
+// Fix pour les icônes Leaflet par défaut
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
@@ -37,12 +37,9 @@ const MapPage = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // 1. Récupérer ma position actuelle (depuis le profil ou navigateur)
-        // Ici on suppose qu'on récupère la liste qui contient les distances calculées par rapport à la DB
         const response = await profileAPI.getMapUsers();
         setUsers(response.data.users);
         
-        // On essaie de récupérer la vraie position GPS navigateur pour centrer
         navigator.geolocation.getCurrentPosition(
           (position) => {
             setMyLocation({
@@ -51,7 +48,6 @@ const MapPage = () => {
             });
           },
           () => {
-             // Fallback: Paris par défaut si refus
              setMyLocation({ lat: 48.8566, lng: 2.3522 });
           }
         );
@@ -64,7 +60,6 @@ const MapPage = () => {
     fetchData();
   }, []);
 
-  // Fonction Bonus : Update Precise GPS
   const handleLocateMe = () => {
     setLocating(true);
     if (!navigator.geolocation) {
@@ -79,9 +74,7 @@ const MapPage = () => {
         setMyLocation({ lat: latitude, lng: longitude });
         
         try {
-          // Sauvegarder la nouvelle position précise en DB
           await userAPI.updateLocation({ latitude, longitude });
-          // Recharger les utilisateurs proches
           const response = await profileAPI.getMapUsers();
           setUsers(response.data.users);
         } catch (error) {
@@ -100,26 +93,26 @@ const MapPage = () => {
 
   if (loading || !myLocation) {
     return (
-      <div className="flex h-[80vh] items-center justify-center">
+      <div className="flex h-[80vh] items-center justify-center bg-gray-50 dark:bg-gray-950 transition-colors duration-200">
         <Loader className="w-10 h-10 animate-spin text-primary-500" />
       </div>
     );
   }
 
   return (
-    <div className="h-[calc(100vh-140px)] w-full relative rounded-xl overflow-hidden shadow-xl border border-gray-200">
+    <div className="h-[calc(100vh-140px)] w-full relative rounded-xl overflow-hidden shadow-xl border border-gray-200 dark:border-gray-800 transition-colors duration-200">
       
-      {/* Bouton de géolocalisation (Bonus) */}
+      {/* Bouton de géolocalisation */}
       <button
         onClick={handleLocateMe}
         disabled={locating}
-        className="absolute top-4 right-4 z400 bg-white p-3 rounded-full shadow-md hover:bg-gray-50 transition-colors"
+        className="absolute top-4 right-4 z-[400] bg-white dark:bg-gray-800 p-3 rounded-full shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
         title="Update my precise location"
       >
         {locating ? (
           <Loader className="w-6 h-6 animate-spin text-primary-500" />
         ) : (
-          <Navigation className="w-6 h-6 text-gray-700" />
+          <Navigation className="w-6 h-6 text-gray-700 dark:text-gray-200" />
         )}
       </button>
 
@@ -128,6 +121,7 @@ const MapPage = () => {
         zoom={13} 
         scrollWheelZoom={true} 
         style={{ height: "100%", width: "100%" }}
+        className="z-10"
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -139,7 +133,7 @@ const MapPage = () => {
         {/* Marqueur "Moi" */}
         <Marker position={[myLocation.lat, myLocation.lng]}>
           <Popup>
-            <div className="text-center">
+            <div className="text-center dark:text-gray-100">
               <span className="font-bold">You are here</span>
             </div>
           </Popup>
@@ -151,16 +145,16 @@ const MapPage = () => {
             key={user.id} 
             position={[user.latitude, user.longitude]}
           >
-            <Popup>
-              <div className="w-32 text-center">
-                <div className="w-16 h-16 mx-auto mb-2 rounded-full overflow-hidden">
+            <Popup className="custom-popup">
+              <div className="w-32 text-center transition-colors">
+                <div className="w-16 h-16 mx-auto mb-2 rounded-full overflow-hidden border-2 border-primary-500">
                   <img 
-                    src={user.profile_picture ? `${import.meta.env.VITE_API_URL}/../uploads/${user.profile_picture}` : '/default-avatar.png'} 
+                    src={user.profile_picture ? `${import.meta.env.VITE_API_URL.replace('/api', '')}/uploads/${user.profile_picture}` : '/default-avatar.png'} 
                     alt={user.username}
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <h3 className="font-bold text-gray-900">{user.first_name}</h3>
+                <h3 className="font-bold text-gray-900 dark:text-gray-100 transition-colors">{user.first_name}</h3>
                 <div className="flex items-center justify-center gap-1 text-yellow-500 text-xs mb-2">
                   <span>★</span> {user.fame_rating}
                 </div>

@@ -90,8 +90,8 @@ const SearchPage = () => {
     <div>
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Advanced Search</h1>
-        <p className="text-gray-500">Find exactly who you're looking for</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Advanced Search</h1>
+        <p className="text-gray-500 dark:text-gray-400">Find exactly who you're looking for</p>
       </div>
 
       {/* Filters */}
@@ -105,9 +105,9 @@ const SearchPage = () => {
       {/* Initial state */}
       {!searched && !loading && (
         <div className="text-center py-20">
-          <Search className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-700 mb-2">Start your search</h3>
-          <p className="text-gray-500 mb-6">Use the filters above to find your match</p>
+          <Search className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">Start your search</h3>
+          <p className="text-gray-500 dark:text-gray-400 mb-6">Use the filters above to find your match</p>
           <button onClick={() => handleSearch(1)} className="btn-primary">
             <Search className="w-4 h-4 mr-2" />
             Search Now
@@ -130,13 +130,13 @@ const SearchPage = () => {
         <>
           {profiles.length === 0 ? (
             <div className="text-center py-20">
-              <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-700 mb-2">No results found</h3>
-              <p className="text-gray-500">Try adjusting your search criteria</p>
+              <Users className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">No results found</h3>
+              <p className="text-gray-500 dark:text-gray-400">Try adjusting your search criteria</p>
             </div>
           ) : (
             <>
-              <p className="text-sm text-gray-500 mb-4">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                 Found {pagination.total} profile{pagination.total !== 1 ? 's' : ''}
               </p>
 
@@ -158,21 +158,21 @@ const SearchPage = () => {
                   <button
                     onClick={() => handlePageChange(pagination.page - 1)}
                     disabled={pagination.page === 1}
-                    className="p-2 rounded-lg border hover:bg-gray-50 disabled:opacity-50"
+                    className="p-2 rounded-lg border dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 transition-colors"
                   >
-                    <ChevronLeft className="w-5 h-5" />
+                    <ChevronLeft className="w-5 h-5 dark:text-gray-300" />
                   </button>
 
-                  <span className="px-4 text-gray-600">
+                  <span className="px-4 text-gray-600 dark:text-gray-400">
                     Page {pagination.page} of {pagination.pages}
                   </span>
 
                   <button
                     onClick={() => handlePageChange(pagination.page + 1)}
                     disabled={pagination.page === pagination.pages}
-                    className="p-2 rounded-lg border hover:bg-gray-50 disabled:opacity-50"
+                    className="p-2 rounded-lg border dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 transition-colors"
                   >
-                    <ChevronRight className="w-5 h-5" />
+                    <ChevronRight className="w-5 h-5 dark:text-gray-300" />
                   </button>
                 </div>
               )}

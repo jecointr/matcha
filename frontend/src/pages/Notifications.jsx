@@ -70,7 +70,7 @@ const Notifications = () => {
       case 'like':
         return <Heart className="w-5 h-5 text-red-500" fill="currentColor" />;
       case 'unlike':
-        return <UserMinus className="w-5 h-5 text-gray-500" />;
+        return <UserMinus className="w-5 h-5 text-gray-500 dark:text-gray-400" />;
       case 'match':
         return <UserCheck className="w-5 h-5 text-green-500" />;
       case 'profile_view':
@@ -78,7 +78,7 @@ const Notifications = () => {
       case 'message':
         return <MessageCircle className="w-5 h-5 text-primary-500" />;
       default:
-        return <Bell className="w-5 h-5 text-gray-500" />;
+        return <Bell className="w-5 h-5 text-gray-500 dark:text-gray-400" />;
     }
   };
 
@@ -129,16 +129,16 @@ const Notifications = () => {
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Notifications</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white transition-colors">Notifications</h1>
         </div>
       </div>
 
       {/* Notifications list */}
       {notifications.length === 0 ? (
         <div className="text-center py-20">
-          <Bell className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-700 mb-2">No notifications</h3>
-          <p className="text-gray-500">
+          <Bell className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4 transition-colors" />
+          <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2 transition-colors">No notifications</h3>
+          <p className="text-gray-500 dark:text-gray-400 transition-colors">
             When someone interacts with you, you'll see it here
           </p>
         </div>
@@ -148,9 +148,11 @@ const Notifications = () => {
             const link = getNotificationLink(notification);
             
             const Content = (
-              <div className={`p-4 rounded-lg flex items-start gap-4 transition-colors ${
-                notification.isRead ? 'bg-white' : 'bg-primary-50'
-              } ${link ? 'hover:bg-gray-50 cursor-pointer' : ''}`}>
+              <div className={`p-4 rounded-lg flex items-start gap-4 transition-colors duration-200 ${
+                notification.isRead 
+                  ? 'bg-white dark:bg-gray-800' 
+                  : 'bg-primary-50 dark:bg-primary-900/20'
+              } ${link ? 'hover:bg-gray-50 dark:hover:bg-gray-700/80 cursor-pointer' : ''}`}>
                 
                 {/* Icon or user photo */}
                 <div className="shrink-0">
@@ -161,12 +163,12 @@ const Notifications = () => {
                         alt=""
                         className="w-12 h-12 rounded-full object-cover"
                       />
-                      <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5">
+                      <div className="absolute -bottom-1 -right-1 bg-white dark:bg-gray-800 rounded-full p-0.5 transition-colors">
                         {getNotificationIcon(notification.type)}
                       </div>
                     </div>
                   ) : (
-                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
+                    <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center transition-colors">
                       {getNotificationIcon(notification.type)}
                     </div>
                   )}
@@ -174,10 +176,10 @@ const Notifications = () => {
 
                 {/* Content Text */}
                 <div className="flex-1 min-w-0">
-                  <p className={`${notification.isRead ? 'text-gray-700' : 'text-gray-900 font-medium'}`}>
+                  <p className={`transition-colors ${notification.isRead ? 'text-gray-700 dark:text-gray-300' : 'text-gray-900 dark:text-gray-100 font-medium'}`}>
                     {notification.message}
                   </p>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 transition-colors">
                     {formatTime(notification.createdAt)}
                   </p>
                 </div>
@@ -190,7 +192,7 @@ const Notifications = () => {
                       e.stopPropagation();
                       handleDelete(notification.id);
                     }}
-                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-gray-100 rounded-full transition-colors"
+                    className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
                     title="Delete"
                   >
                     <Trash2 className="w-4 h-4" />

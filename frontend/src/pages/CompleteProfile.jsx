@@ -175,11 +175,11 @@ const CompleteProfile = () => {
     <div className="max-w-2xl mx-auto">
       {/* Header */}
       <div className="text-center mb-8">
-        <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <div className="w-16 h-16 bg-primary-100 dark:bg-primary-900/40 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors">
           <User className="w-8 h-8 text-primary-500" />
         </div>
-        <h1 className="text-2xl font-bold text-gray-900">Complete Your Profile</h1>
-        <p className="text-gray-600 mt-2">Let's set up your profile to find better matches</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white transition-colors">Complete Your Profile</h1>
+        <p className="text-gray-600 dark:text-gray-400 mt-2 transition-colors">Let's set up your profile to find better matches</p>
       </div>
 
       {/* Progress bar */}
@@ -188,12 +188,12 @@ const CompleteProfile = () => {
           {steps.map((s) => (
             <div
               key={s.num}
-              className={`flex flex-col items-center ${s.num <= step ? 'text-primary-500' : 'text-gray-400'}`}
+              className={`flex flex-col items-center transition-colors ${s.num <= step ? 'text-primary-500' : 'text-gray-400 dark:text-gray-500'}`}
             >
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
                 s.num < step ? 'bg-primary-500 text-white' :
-                s.num === step ? 'border-2 border-primary-500 text-primary-500' :
-                'border-2 border-gray-300 text-gray-400'
+                s.num === step ? 'border-2 border-primary-500 text-primary-500 dark:border-primary-400 dark:text-primary-400' :
+                'border-2 border-gray-300 text-gray-400 dark:border-gray-700 dark:text-gray-500'
               }`}>
                 {s.num < step ? <Check className="w-4 h-4" /> : s.num}
               </div>
@@ -201,7 +201,7 @@ const CompleteProfile = () => {
             </div>
           ))}
         </div>
-        <div className="h-2 bg-gray-200 rounded-full">
+        <div className="h-2 bg-gray-200 dark:bg-gray-800 rounded-full transition-colors">
           <div
             className="h-2 bg-primary-500 rounded-full transition-all duration-300"
             style={{ width: `${((step - 1) / (steps.length - 1)) * 100}%` }}
@@ -213,15 +213,15 @@ const CompleteProfile = () => {
       {error && <Alert type="error" onClose={() => setError('')}>{error}</Alert>}
 
       {/* Step content */}
-      <div className="card">
+      <div className="card transition-colors">
         {/* Step 1: Basic Info */}
         {step === 1 && (
           <div className="space-y-6">
-            <h2 className="text-lg font-semibold">Basic Information</h2>
+            <h2 className="text-lg font-semibold dark:text-white">Basic Information</h2>
             
             {/* Gender */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 I am a
               </label>
               <div className="grid grid-cols-3 gap-3">
@@ -236,8 +236,8 @@ const CompleteProfile = () => {
                     onClick={() => setFormData(prev => ({ ...prev, gender: option.value }))}
                     className={`p-3 border-2 rounded-lg text-center transition-colors ${
                       formData.gender === option.value
-                        ? 'border-primary-500 bg-primary-50 text-primary-700'
-                        : 'border-gray-200 hover:border-gray-300'
+                        ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
+                        : 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600 dark:text-gray-300'
                     }`}
                   >
                     {option.label}
@@ -248,7 +248,7 @@ const CompleteProfile = () => {
 
             {/* Sexual Preference */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Interested in
               </label>
               <div className="grid grid-cols-3 gap-3">
@@ -263,8 +263,8 @@ const CompleteProfile = () => {
                     onClick={() => setFormData(prev => ({ ...prev, sexualPreference: option.value }))}
                     className={`p-3 border-2 rounded-lg text-center transition-colors ${
                       formData.sexualPreference === option.value
-                        ? 'border-primary-500 bg-primary-50 text-primary-700'
-                        : 'border-gray-200 hover:border-gray-300'
+                        ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
+                        : 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600 dark:text-gray-300'
                     }`}
                   >
                     {option.label}
@@ -275,7 +275,7 @@ const CompleteProfile = () => {
 
             {/* Birth Date */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Birth Date
               </label>
               <input
@@ -287,7 +287,7 @@ const CompleteProfile = () => {
                 className="input"
               />
               {formData.birthDate && (
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                   Age: {calculateAge(formData.birthDate)} years old
                 </p>
               )}
@@ -298,10 +298,10 @@ const CompleteProfile = () => {
         {/* Step 2: Biography */}
         {step === 2 && (
           <div className="space-y-6">
-            <h2 className="text-lg font-semibold">About You</h2>
+            <h2 className="text-lg font-semibold dark:text-white">About You</h2>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Biography
               </label>
               <textarea
@@ -313,7 +313,7 @@ const CompleteProfile = () => {
                 maxLength={500}
                 className="input resize-none"
               />
-              <p className="text-sm text-gray-500 mt-1 text-right">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 text-right">
                 {formData.biography.length}/500
               </p>
             </div>
@@ -323,7 +323,7 @@ const CompleteProfile = () => {
         {/* Step 3: Photos */}
         {step === 3 && (
           <div className="space-y-6">
-            <h2 className="text-lg font-semibold">Your Photos</h2>
+            <h2 className="text-lg font-semibold dark:text-white">Your Photos</h2>
             <PhotoUpload
               photos={photos}
               onUpdate={setPhotos}
@@ -335,7 +335,7 @@ const CompleteProfile = () => {
         {/* Step 4: Location */}
         {step === 4 && (
           <div className="space-y-6">
-            <h2 className="text-lg font-semibold">Your Location</h2>
+            <h2 className="text-lg font-semibold dark:text-white">Your Location</h2>
             <LocationPicker
               location={location}
               onUpdate={setLocation}
@@ -346,7 +346,7 @@ const CompleteProfile = () => {
         {/* Step 5: Interests */}
         {step === 5 && (
           <div className="space-y-6">
-            <h2 className="text-lg font-semibold">Your Interests</h2>
+            <h2 className="text-lg font-semibold dark:text-white">Your Interests</h2>
             <TagSelect
               selectedTags={tags}
               onUpdate={setTags}
@@ -356,14 +356,14 @@ const CompleteProfile = () => {
         )}
 
         {/* Navigation buttons */}
-        <div className="flex justify-between mt-8 pt-6 border-t">
+        <div className="flex justify-between mt-8 pt-6 border-t dark:border-gray-800 transition-colors">
           <button
             onClick={handleBack}
             disabled={step === 1}
-            className={`flex items-center gap-1 px-4 py-2 rounded-lg ${
+            className={`flex items-center gap-1 px-4 py-2 rounded-lg transition-colors ${
               step === 1
-                ? 'text-gray-400 cursor-not-allowed'
-                : 'text-gray-600 hover:bg-gray-100'
+                ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
             }`}
           >
             <ChevronLeft className="w-4 h-4" />

@@ -102,29 +102,29 @@ const Browse = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Discover</h1>
-          <p className="text-gray-500">Find your perfect match</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Discover</h1>
+          <p className="text-gray-500 dark:text-gray-400">Find your perfect match</p>
         </div>
 
         {/* Quick links */}
         <div className="flex gap-2">
           <Link
             to="/search"
-            className="flex items-center gap-2 px-4 py-2 bg-white border rounded-lg hover:bg-gray-50"
+            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors"
           >
             <Search className="w-4 h-4" />
             Search
           </Link>
           <Link
             to="/likes"
-            className="flex items-center gap-2 px-4 py-2 bg-white border rounded-lg hover:bg-gray-50"
+            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors"
           >
             <Heart className="w-4 h-4" />
             Likes
           </Link>
           <Link
             to="/visitors"
-            className="flex items-center gap-2 px-4 py-2 bg-white border rounded-lg hover:bg-gray-50"
+            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors"
           >
             <Eye className="w-4 h-4" />
             Visitors
@@ -134,7 +134,7 @@ const Browse = () => {
 
       {/* Match alert */}
       {matchAlert && (
-        <div className="mb-6 p-4 bg-linear-to-r from-primary-500 to-pink-500 text-white rounded-lg animate-fade-in">
+        <div className="mb-6 p-4 bg-linear-to-r from-primary-500 to-pink-500 text-white rounded-lg animate-fade-in shadow-md">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="text-3xl">🎉</div>
@@ -145,7 +145,7 @@ const Browse = () => {
             </div>
             <Link
               to={`/chat`}
-              className="px-4 py-2 bg-white text-primary-500 rounded-lg font-medium hover:bg-gray-100"
+              className="px-4 py-2 bg-white text-primary-500 rounded-lg font-medium hover:bg-gray-100 transition-colors"
             >
               Send Message
             </Link>
@@ -166,9 +166,9 @@ const Browse = () => {
         </div>
       ) : profiles.length === 0 ? (
         <div className="text-center py-20">
-          <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-700 mb-2">No profiles found</h3>
-          <p className="text-gray-500 mb-4">Try adjusting your filters</p>
+          <Users className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">No profiles found</h3>
+          <p className="text-gray-500 dark:text-gray-400 mb-4">Try adjusting your filters</p>
           <button
             onClick={() => setFilters({
               minAge: '',
@@ -205,9 +205,9 @@ const Browse = () => {
               <button
                 onClick={() => handlePageChange(pagination.page - 1)}
                 disabled={pagination.page === 1}
-                className="p-2 rounded-lg border hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-2 rounded-lg border dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                <ChevronLeft className="w-5 h-5" />
+                <ChevronLeft className="w-5 h-5 dark:text-gray-300" />
               </button>
 
               <div className="flex gap-1">
@@ -227,10 +227,10 @@ const Browse = () => {
                     <button
                       key={pageNum}
                       onClick={() => handlePageChange(pageNum)}
-                      className={`w-10 h-10 rounded-lg ${
+                      className={`w-10 h-10 rounded-lg transition-colors ${
                         pagination.page === pageNum
                           ? 'bg-primary-500 text-white'
-                          : 'border hover:bg-gray-50'
+                          : 'border dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:text-gray-300'
                       }`}
                     >
                       {pageNum}
@@ -242,12 +242,12 @@ const Browse = () => {
               <button
                 onClick={() => handlePageChange(pagination.page + 1)}
                 disabled={pagination.page === pagination.pages}
-                className="p-2 rounded-lg border hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-2 rounded-lg border dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                <ChevronRight className="w-5 h-5" />
+                <ChevronRight className="w-5 h-5 dark:text-gray-300" />
               </button>
 
-              <span className="text-sm text-gray-500 ml-4">
+              <span className="text-sm text-gray-500 dark:text-gray-400 ml-4">
                 {pagination.total} profiles
               </span>
             </div>

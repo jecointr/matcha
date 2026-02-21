@@ -1,11 +1,14 @@
 import { Routes, Route, Link, useNavigate, Navigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Heart, Bell, MessageCircle, User, LogOut, Menu, X, Compass, MapPin } from 'lucide-react';
 // Context
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider, useSocket } from './context/SocketContext';
+import { CallProvider } from './context/CallContext';
 // Route guards
 import { PrivateRoute, GuestRoute, CompleteProfileRoute } from './components/PrivateRoute';
+// Components
+import ThemeToggle from './components/ui/ThemeToggle'; // NOUVEAU
 // Pages
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -23,7 +26,6 @@ import Visitors from './pages/Visitors';
 import Chat from './pages/Chat';
 import Notifications from './pages/Notifications';
 import MapPage from './pages/MapPage';
-import { CallProvider } from './context/CallContext';
 
 // Home page
 const Home = () => {
@@ -33,8 +35,8 @@ const Home = () => {
   }
   return (
   <div className="text-center py-20">
-    <h1 className="text-4xl font-bold text-gray-900 mb-4">Welcome to Matcha</h1>
-    <p className="text-xl text-gray-600 mb-8">Find your perfect match</p>
+    <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">Welcome to Matcha</h1>
+    <p className="text-xl text-gray-600 dark:text-gray-400 mb-8">Find your perfect match</p>
     <div className="space-x-4">
       <Link to="/login" className="btn-primary">Login</Link>
       <Link to="/register" className="btn-outline">Register</Link>
@@ -45,8 +47,8 @@ const Home = () => {
 
 const NotFound = () => (
   <div className="text-center py-20">
-    <h1 className="text-6xl font-bold text-gray-300">404</h1>
-    <p className="text-xl text-gray-500 mt-4">Page not found</p>
+    <h1 className="text-6xl font-bold text-gray-300 dark:text-gray-600">404</h1>
+    <p className="text-xl text-gray-500 dark:text-gray-400 mt-4">Page not found</p>
     <Link to="/" className="btn-primary mt-6 inline-block">Go Home</Link>
   </div>
 );
@@ -64,7 +66,8 @@ const Header = () => {
   };
 
   return (
-    <header className="bg-white border-b sticky top-0 z-50">
+    // Ajout de "dark:bg-gray-900 dark:border-gray-800" pour le header
+    <header className="bg-white dark:bg-gray-900 border-b dark:border-gray-800 sticky top-0 z-50 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
@@ -74,42 +77,44 @@ const Header = () => {
               alt="Logo Matcha"
               className="h-8 w-8"
             />
-            <span className="text-xl font-bold text-gray-900">Matcha</span>
+            <span className="text-xl font-bold text-gray-900 dark:text-white">Matcha</span>
           </Link>
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-2">
             {isAuthenticated ? (
               <>
-                <Link to="/browse" className="flex items-center text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-100">
+                <Link to="/browse" className="flex items-center text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                   <Compass className="h-5 w-5 mr-1" />
                   Browse
                 </Link>
-                <Link to="/map" className="flex items-center text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-100">
+                <Link to="/map" className="flex items-center text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                   <MapPin className="h-5 w-5 mr-1" />
                   Map
                 </Link>
-                <Link to="/chat" className="relative text-gray-600 hover:text-gray-900 p-2 rounded-lg hover:bg-gray-100">
+                <Link to="/chat" className="relative text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                   <MessageCircle className="h-6 w-6" />
-                  {/* CORRECTION : Pastille simple (Dot) au lieu du chiffre */}
                   {unreadMessages > 0 && (
-                    <span className="absolute top-1 right-1 h-2.5 w-2.5 bg-red-500 rounded-full ring-2 ring-white"></span>
+                    <span className="absolute top-1 right-1 h-2.5 w-2.5 bg-red-500 rounded-full ring-2 ring-white dark:ring-gray-900"></span>
                   )}
                 </Link>
-                <Link to="/notifications" className="relative text-gray-600 hover:text-gray-900 p-2 rounded-lg hover:bg-gray-100">
+                <Link to="/notifications" className="relative text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                   <Bell className="h-6 w-6" />
-                  {/* CORRECTION : Pastille simple (Dot) au lieu du chiffre */}
                   {unreadNotifications > 0 && (
-                    <span className="absolute top-1 right-2 h-2.5 w-2.5 bg-red-500 rounded-full ring-2 ring-white"></span>
+                    <span className="absolute top-1 right-2 h-2.5 w-2.5 bg-red-500 rounded-full ring-2 ring-white dark:ring-gray-900"></span>
                   )}
                 </Link>
-                <Link to="/profile" className="text-gray-600 hover:text-gray-900 p-2 rounded-lg hover:bg-gray-100">
+                <Link to="/profile" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                   <User className="h-6 w-6" />
                 </Link>
-                <div className="w-px h-6 bg-gray-200 mx-2" />
+                
+                <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-2" />
+                
+                <ThemeToggle /> {/* NOUVEAU: BOUTON DARK MODE DESKTOP */}
+                
                 <button
                   onClick={handleLogout}
-                  className="text-gray-600 hover:text-gray-900 p-2 rounded-lg hover:bg-gray-100"
+                  className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                   title="Logout"
                 >
                   <LogOut className="h-6 w-6" />
@@ -117,7 +122,8 @@ const Header = () => {
               </>
             ) : (
               <>
-                <Link to="/login" className="text-gray-600 hover:text-gray-900 px-4 py-2">
+                <ThemeToggle /> {/* NOUVEAU: BOUTON DARK MODE DESKTOP INVITE */}
+                <Link to="/login" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-4 py-2 transition-colors">
                   Login
                 </Link>
                 <Link to="/register" className="btn-primary">
@@ -128,53 +134,54 @@ const Header = () => {
           </nav>
 
           {/* Mobile menu button */}
-          <button
-            className="md:hidden p-2 rounded-lg hover:bg-gray-100"
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-          >
-            {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-          </button>
+          <div className="flex items-center gap-2 md:hidden">
+            <ThemeToggle /> {/* NOUVEAU: BOUTON DARK MODE MOBILE */}
+            <button
+              className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+            >
+              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </button>
+          </div>
         </div>
 
         {/* Mobile Navigation */}
         {isMenuOpen && (
-          <nav className="md:hidden py-4 border-t">
+          <nav className="md:hidden py-4 border-t dark:border-gray-800">
             <div className="flex flex-col space-y-1">
               {isAuthenticated ? (
                 <>
-                  <Link to="/browse" className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg flex items-center" onClick={() => setIsMenuOpen(false)}>
+                  <Link to="/browse" className="px-3 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg flex items-center transition-colors" onClick={() => setIsMenuOpen(false)}>
                     <Compass className="h-5 w-5 mr-2" /> Browse
                   </Link>
-                  <Link to="/map" className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg flex items-center" onClick={() => setIsMenuOpen(false)}>
+                  <Link to="/map" className="px-3 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg flex items-center transition-colors" onClick={() => setIsMenuOpen(false)}>
                     <MapPin className="h-5 w-5 mr-2" /> Map
                   </Link>
-                  <Link to="/chat" className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg flex items-center justify-between" onClick={() => setIsMenuOpen(false)}>
+                  <Link to="/chat" className="px-3 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg flex items-center justify-between transition-colors" onClick={() => setIsMenuOpen(false)}>
                     <span className="flex items-center"><MessageCircle className="h-5 w-5 mr-2" /> Messages</span>
-                    {/* CORRECTION Mobile : Pastille simple */}
                     {unreadMessages > 0 && <span className="h-2.5 w-2.5 bg-red-500 rounded-full"></span>}
                   </Link>
-                  <Link to="/notifications" className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg flex items-center justify-between" onClick={() => setIsMenuOpen(false)}>
+                  <Link to="/notifications" className="px-3 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg flex items-center justify-between transition-colors" onClick={() => setIsMenuOpen(false)}>
                     <span className="flex items-center"><Bell className="h-5 w-5 mr-2" /> Notifications</span>
-                    {/* CORRECTION Mobile : Pastille simple */}
                     {unreadNotifications > 0 && <span className="h-2.5 w-2.5 bg-red-500 rounded-full"></span>}
                   </Link>
-                  <Link to="/profile" className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg flex items-center" onClick={() => setIsMenuOpen(false)}>
+                  <Link to="/profile" className="px-3 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg flex items-center transition-colors" onClick={() => setIsMenuOpen(false)}>
                     <User className="h-5 w-5 mr-2" /> Profile
                   </Link>
-                  <hr className="my-2" />
+                  <hr className="my-2 dark:border-gray-800" />
                   <button
                     onClick={() => { handleLogout(); setIsMenuOpen(false); }}
-                    className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg flex items-center w-full text-left"
+                    className="px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg flex items-center w-full text-left transition-colors"
                   >
                     <LogOut className="h-5 w-5 mr-2" /> Logout
                   </button>
                 </>
               ) : (
                 <>
-                  <Link to="/login" className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg" onClick={() => setIsMenuOpen(false)}>
+                  <Link to="/login" className="px-3 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors" onClick={() => setIsMenuOpen(false)}>
                     Login
                   </Link>
-                  <Link to="/register" className="px-3 py-2 text-primary-500 hover:bg-primary-50 rounded-lg font-medium" onClick={() => setIsMenuOpen(false)}>
+                  <Link to="/register" className="px-3 py-2 text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg font-medium transition-colors" onClick={() => setIsMenuOpen(false)}>
                     Register
                   </Link>
                 </>
@@ -189,20 +196,21 @@ const Header = () => {
 
 // Footer component
 const Footer = () => (
-  <footer className="bg-white border-t mt-auto">
+  // Ajout du fond et bordure dark mode
+  <footer className="bg-white dark:bg-gray-900 border-t dark:border-gray-800 mt-auto transition-colors">
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex flex-col md:flex-row justify-between items-center">
         <div className="flex items-center space-x-2 mb-4 md:mb-0">
           <Heart className="h-6 w-6 text-primary-500" fill="currentColor" />
-          <span className="font-semibold text-gray-900">Matcha</span>
+          <span className="font-semibold text-gray-900 dark:text-white">Matcha</span>
         </div>
-        <div className="flex space-x-6 text-sm text-gray-500">
-          <a href="#" className="hover:text-gray-900">About</a>
-          <a href="#" className="hover:text-gray-900">Privacy</a>
-          <a href="#" className="hover:text-gray-900">Terms</a>
-          <a href="#" className="hover:text-gray-900">Contact</a>
+        <div className="flex space-x-6 text-sm text-gray-500 dark:text-gray-400">
+          <a href="#" className="hover:text-gray-900 dark:hover:text-white transition-colors">About</a>
+          <a href="#" className="hover:text-gray-900 dark:hover:text-white transition-colors">Privacy</a>
+          <a href="#" className="hover:text-gray-900 dark:hover:text-white transition-colors">Terms</a>
+          <a href="#" className="hover:text-gray-900 dark:hover:text-white transition-colors">Contact</a>
         </div>
-        <p className="text-sm text-gray-500 mt-4 md:mt-0">
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-4 md:mt-0">
           © {new Date().getFullYear()} Matcha. All rights reserved.
         </p>
       </div>
@@ -212,7 +220,8 @@ const Footer = () => (
 
 // Main layout
 const Layout = ({ children }) => (
-  <div className="min-h-screen flex flex-col">
+  // Ajout du fond global dark mode : dark:bg-gray-950
+  <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950 transition-colors">
     <Header />
     <main className="flex-1">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

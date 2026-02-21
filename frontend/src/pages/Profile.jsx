@@ -173,7 +173,7 @@ const Profile = () => {
   return (
     <div className="max-w-4xl mx-auto">
       {/* Header with profile picture */}
-      <div className="card mb-6">
+      <div className="card mb-6 transition-colors duration-200">
         <div className="flex flex-col sm:flex-row items-center gap-6">
           {/* Profile picture */}
           <div className="relative">
@@ -181,11 +181,11 @@ const Profile = () => {
               <img
                 src={getProfilePicture()}
                 alt="Profile"
-                className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
+                className="w-32 h-32 rounded-full object-cover border-4 border-white dark:border-gray-800 shadow-lg transition-colors"
               />
             ) : (
-              <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center border-4 border-white shadow-lg">
-                <User className="w-16 h-16 text-gray-400" />
+              <div className="w-32 h-32 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center border-4 border-white dark:border-gray-800 shadow-lg transition-colors">
+                <User className="w-16 h-16 text-gray-400 dark:text-gray-500" />
               </div>
             )}
             <div className="absolute -bottom-1 -right-1 bg-primary-500 text-white p-2 rounded-full shadow">
@@ -195,12 +195,12 @@ const Profile = () => {
 
           {/* Basic info */}
           <div className="flex-1 text-center sm:text-left">
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white transition-colors">
               {profile?.firstName} {profile?.lastName}
             </h1>
-            <p className="text-gray-500">@{profile?.username}</p>
+            <p className="text-gray-500 dark:text-gray-400">@{profile?.username}</p>
             
-            <div className="flex flex-wrap justify-center sm:justify-start gap-4 mt-3 text-sm text-gray-600">
+            <div className="flex flex-wrap justify-center sm:justify-start gap-4 mt-3 text-sm text-gray-600 dark:text-gray-300">
               {formData.birthDate && (
                 <span className="flex items-center gap-1">
                   <Calendar className="w-4 h-4" />
@@ -247,7 +247,7 @@ const Profile = () => {
       {success && <Alert type="success" onClose={() => setSuccess('')}>{success}</Alert>}
 
       {/* Tabs */}
-      <div className="flex border-b mb-6">
+      <div className="flex border-b dark:border-gray-800 mb-6 transition-colors">
         {[
           { id: 'profile', label: 'Profile', icon: User },
           { id: 'photos', label: 'Photos', icon: Camera },
@@ -260,7 +260,7 @@ const Profile = () => {
             className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${
               activeTab === tab.id
                 ? 'border-primary-500 text-primary-500'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
             }`}
           >
             <tab.icon className="w-4 h-4" />
@@ -270,7 +270,7 @@ const Profile = () => {
       </div>
 
       {/* Tab content */}
-      <div className="card">
+      <div className="card transition-colors duration-200">
         {/* Profile Tab */}
         {activeTab === 'profile' && (
           <div className="space-y-6">
@@ -302,7 +302,7 @@ const Profile = () => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Gender</label>
                     <select
                       name="gender"
                       value={formData.gender}
@@ -316,7 +316,7 @@ const Profile = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Interested in</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Interested in</label>
                     <select
                       name="sexualPreference"
                       value={formData.sexualPreference}
@@ -339,7 +339,7 @@ const Profile = () => {
                 />
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Biography</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Biography</label>
                   <textarea
                     name="biography"
                     value={formData.biography}
@@ -348,13 +348,13 @@ const Profile = () => {
                     maxLength={500}
                     className="input resize-none"
                   />
-                  <p className="text-sm text-gray-500 mt-1 text-right">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 text-right">
                     {formData.biography.length}/500
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Interests</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Interests</label>
                   <TagSelect selectedTags={tags} onUpdate={setTags} maxTags={10} />
                 </div>
               </>
@@ -362,18 +362,18 @@ const Profile = () => {
               <>
                 {/* View mode */}
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-2">About me</h3>
-                  <p className="text-gray-900">{profile?.biography || 'No biography yet'}</p>
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">About me</h3>
+                  <p className="text-gray-900 dark:text-gray-100">{profile?.biography || 'No biography yet'}</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-1">Gender</h3>
-                    <p className="text-gray-900 capitalize">{profile?.gender || 'Not set'}</p>
+                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Gender</h3>
+                    <p className="text-gray-900 dark:text-gray-100 capitalize">{profile?.gender || 'Not set'}</p>
                   </div>
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-1">Interested in</h3>
-                    <p className="text-gray-900 capitalize">
+                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Interested in</h3>
+                    <p className="text-gray-900 dark:text-gray-100 capitalize">
                       {profile?.sexualPreference === 'both' ? 'Men & Women' : 
                        profile?.sexualPreference === 'male' ? 'Men' : 'Women'}
                     </p>
@@ -382,7 +382,7 @@ const Profile = () => {
 
                 {tags.length > 0 && (
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-2">Interests</h3>
+                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Interests</h3>
                     <div className="flex flex-wrap gap-2">
                       {tags.map(tag => (
                         <span key={tag.id} className="badge-primary">
@@ -410,18 +410,17 @@ const Profile = () => {
         {/* Settings Tab */}
         {activeTab === 'settings' && (
           <div className="space-y-6">
-            <h3 className="text-lg font-semibold">Account Settings</h3>
+            <h3 className="text-lg font-semibold dark:text-white">Account Settings</h3>
             
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <h4 className="font-medium text-gray-900 mb-2">Change Password</h4>
-              <p className="text-sm text-gray-500 mb-3">
+            <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg transition-colors">
+              <h4 className="font-medium text-gray-900 dark:text-white mb-2">Change Password</h4>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
                 To change your password, click the button below to receive a reset link by email.
               </p>
               <Button 
                   onClick={async () => {
                     try {
                       setLoading(true);
-                      // On utilise l'email du profil actuel
                       await authAPI.forgotPassword(profile.email);
                       setSuccess(`Reset link sent to ${profile.email}`);
                     } catch (err) {
@@ -437,14 +436,14 @@ const Profile = () => {
                 </Button>
             </div>
 
-            <div className="p-4 bg-red-50 rounded-lg">
-              <h4 className="font-medium text-red-900 mb-2">Danger Zone</h4>
-              <p className="text-sm text-red-700 mb-3">
+            <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg transition-colors">
+              <h4 className="font-medium text-red-900 dark:text-red-400 mb-2">Danger Zone</h4>
+              <p className="text-sm text-red-700 dark:text-red-300 mb-3">
                 Deleting your account is permanent and cannot be undone.
               </p>
               <button 
                 onClick={handleDeleteAccount}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700"
+                className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition-colors"
               >
                 Delete Account
               </button>

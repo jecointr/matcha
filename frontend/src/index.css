@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* === Activation du Dark Mode (Manuel via classe) === */
+@custom-variant dark (&:is(.dark *));
+
 /* === Configuration du Thème === */
 @theme {
   /* Polices */
@@ -29,19 +32,21 @@
 /* === Styles de Base === */
 @layer base {
   body {
-    @apply bg-gray-50 text-gray-900 antialiased font-sans;
+    /* MODIF: Ajout du fond et texte sombre, et d'une transition douce */
+    @apply bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100 antialiased font-sans transition-colors duration-200;
   }
   h1, h2, h3, h4, h5, h6 {
-    @apply font-heading font-bold text-gray-900;
+    /* MODIF: Les titres deviennent blancs en dark mode */
+    @apply font-heading font-bold text-gray-900 dark:text-white transition-colors duration-200;
   }
   * {
-    @apply border-gray-200;
+    /* MODIF: Les bordures par défaut s'assombrissent */
+    @apply border-gray-200 dark:border-gray-800 transition-colors duration-200;
   }
 }
 
 /* === Composants === */
 @layer components {
-  /* CORRECTION ICI : On regroupe les sélecteurs au lieu de faire @apply btn */
   .btn, 
   .btn-primary, 
   .btn-secondary, 
@@ -54,28 +59,55 @@
   }
   
   .btn-secondary {
-    @apply bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-500;
+    /* MODIF: Le bouton secondaire passe au gris foncé en mode sombre */
+    @apply bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700 focus:ring-gray-500;
   }
   
   .btn-outline {
-    @apply border-2 border-primary-500 text-primary-500 hover:bg-primary-50 focus:ring-primary-500;
+    /* MODIF: Au survol, le bouton outline a un fond semi-transparent adapté au dark mode */
+    @apply border-2 border-primary-500 text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/30 focus:ring-primary-500;
   }
   
   .input {
-    @apply w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-shadow;
+    /* MODIF: Les champs de texte passent au fond sombre avec texte clair */
+    @apply w-full px-4 py-2 border bg-white text-gray-900 dark:bg-gray-900 dark:text-white dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200;
   }
   
   .card {
-    @apply bg-white rounded-xl shadow-sm border p-6;
+    /* MODIF: Les cartes passent au gris très foncé */
+    @apply bg-white dark:bg-gray-900 rounded-xl shadow-sm border p-6 transition-colors duration-200;
   }
   
-  /* MÊME CORRECTION pour les badges */
   .badge, 
   .badge-primary {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors duration-200;
   }
   
   .badge-primary {
-    @apply bg-primary-100 text-primary-800;
+    /* MODIF: Les badges réduisent leur opacité de fond pour rester lisibles */
+    @apply bg-primary-100 text-primary-800 dark:bg-primary-900/40 dark:text-primary-300;
   }
+}
+
+/* --- Support Leaflet Dark Mode --- */
+
+/* Assombrir les tuiles de la carte en mode dark */
+.dark .leaflet-tile {
+  filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+}
+
+/* Style de la bulle Popup Leaflet */
+.dark .leaflet-popup-content-wrapper,
+.dark .leaflet-popup-tip {
+  background-color: #111827; /* gray-900 */
+  color: #f3f4f6; /* gray-100 */
+  border: 1px solid #374151; /* gray-700 */
+}
+
+.dark .leaflet-container a.leaflet-popup-close-button {
+  color: #9ca3af; /* gray-400 */
+}
+
+.dark .leaflet-container a.leaflet-popup-close-button:hover {
+  color: #ffffff;
 }
