@@ -54,7 +54,6 @@ const Chat = () => {
   
   const isTypingRef = useRef(false);
   const typingTimeoutRef = useRef(null);
-  // MODIF : Ajout d'une ref pour stocker les timeouts d'auto-kill de la bulle
   const typingTimeouts = useRef({}); 
 
   const handleBlockUser = async () => {
@@ -196,7 +195,6 @@ const Chat = () => {
       return () => {
         leaveChat(activeConversation.id);
         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-        // MODIF : Nettoyage des timers fantômes de la bulle à la fermeture du chat
         Object.values(typingTimeouts.current).forEach(clearTimeout); 
       };
     }
@@ -250,17 +248,13 @@ const Chat = () => {
     return unsubscribe;
   }, [onChatMessage, activeConversation, user.id]);
 
-  // MODIFIÉ ICI : La gestion de la bulle blindée
   useEffect(() => {
     const unsubscribe = onTyping((data) => {
-      // Sécurité sur le type
       if (Number(data.conversationId) === Number(activeConversation?.id)) {
         if (data.type === 'typing:start') {
           setTypingUsers(prev => ({ ...prev, [data.userId]: true }));
-          // Forcer le scroll pour bien voir la bulle quand elle apparaît en bas
           setTimeout(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, 50);
 
-          // AUTO-KILL : Destruction de la bulle après 3s sans nouvelle (évite le bug du "en train d'écrire à l'infini")
           if (typingTimeouts.current[data.userId]) clearTimeout(typingTimeouts.current[data.userId]);
           typingTimeouts.current[data.userId] = setTimeout(() => {
             setTypingUsers(prev => {
@@ -271,7 +265,6 @@ const Chat = () => {
           }, 3000);
 
         } else {
-          // Arrêt normal
           if (typingTimeouts.current[data.userId]) clearTimeout(typingTimeouts.current[data.userId]);
           setTypingUsers(prev => {
             const next = { ...prev };
@@ -368,7 +361,6 @@ const Chat = () => {
       status: 'sending',
       replyToId: currentReply?.id || null, 
       replyContent: currentReply?.content || null, 
-      // MODIF: On récupère l'ID pour savoir de qui vient la citation
       replySenderId: currentReply?.senderId || null, 
       replySenderName: currentReply ? (currentReply.isOwn ? 'Vous' : currentReply.senderName) : null
     };
@@ -406,7 +398,6 @@ const Chat = () => {
     }
   };
 
-  // MODIFIÉ ICI : On spamme le ping "je tape" pour la stabilité au lieu de ne l'envoyer qu'une seule fois
   const handleTyping = (e) => {
     const value = e.target.value;
     setNewMessage(value);
@@ -478,17 +469,18 @@ const Chat = () => {
   }
 
   return (
-    <div className="flex h-[calc(100vh-12rem)] bg-white rounded-lg border overflow-hidden">
+    <div className="flex h-[calc(100vh-12rem)] bg-white dark:bg-gray-900 rounded-lg border dark:border-gray-800 overflow-hidden transition-colors duration-200">
+      
       {/* Conversations list */}
-      <div className={`w-full md:w-80 border-r flex flex-col ${activeConversation ? 'hidden md:flex' : 'flex'}`}>
-        <div className="p-4 border-b">
-          <h2 className="text-lg font-semibold">Messages</h2>
+      <div className={`w-full md:w-80 border-r dark:border-gray-800 flex flex-col ${activeConversation ? 'hidden md:flex' : 'flex'} transition-colors duration-200`}>
+        <div className="p-4 border-b dark:border-gray-800 transition-colors duration-200">
+          <h2 className="text-lg font-semibold dark:text-white">Messages</h2>
         </div>
         
         <div className="flex-1 overflow-y-auto">
           {conversations.length === 0 ? (
-            <div className="p-4 text-center text-gray-500">
-              <MessageCircle className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+            <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+              <MessageCircle className="w-12 h-12 mx-auto mb-2 text-gray-300 dark:text-gray-600" />
               <p>No conversations yet</p>
               <p className="text-sm">Match with someone to start chatting</p>
             </div>
@@ -497,8 +489,8 @@ const Chat = () => {
               <button
                 key={conv.id}
                 onClick={() => selectConversation(conv)}
-                className={`w-full p-4 flex items-center gap-3 hover:bg-gray-50 transition-colors ${
-                  activeConversation?.id === conv.id ? 'bg-primary-50' : ''
+                className={`w-full p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors duration-200 ${
+                  activeConversation?.id === conv.id ? 'bg-primary-50 dark:bg-primary-900/20' : ''
                 }`}
               >
                 <div className="relative">
@@ -509,25 +501,25 @@ const Chat = () => {
                       className="w-12 h-12 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center">
-                      <User className="w-6 h-6 text-gray-400" />
+                    <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center transition-colors duration-200">
+                      <User className="w-6 h-6 text-gray-400 dark:text-gray-500" />
                     </div>
                   )}
                   {conv.otherUser.isOnline && (
-                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full" />
+                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full transition-colors duration-200" />
                   )}
                 </div>
                 
                 <div className="flex-1 min-w-0 text-left">
                   <div className="flex justify-between items-center">
-                    <span className="font-medium truncate">{conv.otherUser.firstName}</span>
+                    <span className="font-medium truncate dark:text-gray-100">{conv.otherUser.firstName}</span>
                     {conv.lastMessageAt && (
-                      <span className="text-xs text-gray-400">
+                      <span className="text-xs text-gray-400 dark:text-gray-500">
                         {formatTime(conv.lastMessageAt)}
                       </span>
                     )}
                   </div>
-                  <p className={`text-sm truncate ${conv.unreadCount > 0 ? 'font-semibold text-gray-900' : 'text-gray-500'}`}>
+                  <p className={`text-sm truncate transition-colors duration-200 ${conv.unreadCount > 0 ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>
                     {conv.lastMessage || 'Start a conversation'}
                   </p>
                 </div>
@@ -548,13 +540,13 @@ const Chat = () => {
         {activeConversation ? (
           <>
             {/* Chat header */}
-            <div className="p-4 border-b flex items-center gap-3">
+            <div className="p-4 border-b dark:border-gray-800 flex items-center gap-3 transition-colors duration-200">
               <button
                 onClick={() => {
                   setActiveConversation(null);
                   setSearchParams({});
                 }}
-                className="md:hidden p-2 hover:bg-gray-100 rounded-lg"
+                className="md:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-gray-600 dark:text-gray-300 transition-colors duration-200"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
@@ -567,13 +559,13 @@ const Chat = () => {
                     className="w-10 h-10 rounded-full object-cover"
                   />
                 ) : (
-                  <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-                    <User className="w-5 h-5 text-gray-400" />
+                  <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center transition-colors duration-200">
+                    <User className="w-5 h-5 text-gray-400 dark:text-gray-500" />
                   </div>
                 )}
                 <div>
-                  <h3 className="font-medium">{activeConversation.otherUser.firstName}</h3>
-                  <p className="text-xs text-gray-500 flex items-center gap-1">
+                  <h3 className="font-medium dark:text-gray-100">{activeConversation.otherUser.firstName}</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
                     {activeConversation.otherUser.isOnline ? (
                       <>
                         <Circle className="w-2 h-2 fill-green-500 text-green-500" />
@@ -588,14 +580,14 @@ const Chat = () => {
               
               <button 
                 onClick={() => callUser(activeConversation.otherUser.id, false)}
-                className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-full transition-all duration-200"
+                className="p-2 text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-full transition-all duration-200"
                 title="Start Audio Call"
               >
                 <Phone className="w-5 h-5" />
               </button>
               <button 
                 onClick={() => callUser(activeConversation.otherUser.id, true)}
-                className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-full transition-all duration-200"
+                className="p-2 text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-full transition-all duration-200"
                 title="Start Video Call"
               >
                 <Video className="w-6 h-6" />
@@ -603,7 +595,7 @@ const Chat = () => {
               
               <button 
                 onClick={handleBlockUser}
-                className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-all duration-200"
+                className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-all duration-200"
                 title="Bloquer cet utilisateur"
               >
                 <Ban className="w-5 h-5" />
@@ -612,27 +604,27 @@ const Chat = () => {
 
             {/* Events Banner */}
             {events.length > 0 && (
-              <div className="bg-primary-50 border-b p-3">
+              <div className="bg-primary-50 dark:bg-primary-900/10 border-b dark:border-gray-800 p-3 transition-colors duration-200">
                 {events.map(evt => (
-                  <div key={evt.id} className="bg-white p-3 rounded-lg shadow-sm border border-primary-100 flex justify-between items-center mb-2 last:mb-0">
+                  <div key={evt.id} className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm border border-primary-100 dark:border-gray-700 flex justify-between items-center mb-2 last:mb-0 transition-colors duration-200">
                     <div className="flex gap-3">
-                        <div className="bg-primary-100 p-2 rounded-lg flex flex-col items-center justify-center min-w-14 text-primary-700">
+                        <div className="bg-primary-100 dark:bg-primary-900/40 p-2 rounded-lg flex flex-col items-center justify-center min-w-14 text-primary-700 dark:text-primary-300">
                           <span className="text-xs font-bold uppercase">{new Date(evt.event_date).toLocaleString('default', { month: 'short' })}</span>
                           <span className="text-lg font-bold">{new Date(evt.event_date).getDate()}</span>
                         </div>
                         <div>
-                          <div className="font-semibold text-gray-900 flex items-center gap-2">
+                          <div className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
                             {evt.location}
                             <span className={`text-xs px-2 py-0.5 rounded-full ${
-                              evt.status === 'accepted' ? 'bg-green-100 text-green-700' : 
-                              evt.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100'
+                              evt.status === 'accepted' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 
+                              evt.status === 'pending' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
                             }`}>
                               {evt.status}
                             </span>
                           </div>
-                          <p className="text-sm text-gray-600 flex items-center gap-1">
+                          <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
                             <Clock className="w-3 h-3" /> {new Date(evt.event_date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                            {evt.description && <span className="text-gray-400 mx-1">• {evt.description}</span>}
+                            {evt.description && <span className="text-gray-400 dark:text-gray-500 mx-1">• {evt.description}</span>}
                           </p>
                         </div>
                     </div>
@@ -648,7 +640,7 @@ const Chat = () => {
                           </button>
                           <button 
                             onClick={() => handleEventStatus(evt.id, 'declined')}
-                            className="bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-xs px-3 py-1 transition"
+                            className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-xs px-3 py-1 transition-colors duration-200"
                           >
                             Decline
                           </button>
@@ -657,7 +649,7 @@ const Chat = () => {
                       {evt.status === 'pending' && evt.creator_id === user.id && (
                         <button 
                             onClick={() => handleEventStatus(evt.id, 'cancelled')}
-                            className="text-gray-400 hover:text-red-500 text-xs px-2"
+                            className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 text-xs px-2 transition-colors duration-200"
                         >
                           Cancel
                         </button>
@@ -674,7 +666,7 @@ const Chat = () => {
                 <button
                   onClick={handleLoadMore}
                   disabled={loadingMessages}
-                  className="w-full py-2 text-sm text-primary-500 hover:underline"
+                  className="w-full py-2 text-sm text-primary-500 dark:text-primary-400 hover:underline"
                 >
                   {loadingMessages ? 'Loading...' : 'Load earlier messages'}
                 </button>
@@ -687,7 +679,7 @@ const Chat = () => {
                 return (
                   <div key={msg.id}>
                     {showDate && (
-                      <div className="text-center text-xs text-gray-400 my-4">
+                      <div className="text-center text-xs text-gray-400 dark:text-gray-500 my-4">
                         {formatDate(msg.createdAt)}
                       </div>
                     )}
@@ -698,7 +690,7 @@ const Chat = () => {
                       {/* Inner Container : items-center assure le centrage vertical du bouton emoji */}
                       <div className={`flex items-center gap-2 max-w-[85%] md:max-w-[75%] ${msg.isOwn ? 'flex-row' : 'flex-row-reverse'}`}>
                         
-                        {/* BOUTON DE REPONSE (NOUVEAU) */}
+                        {/* BOUTON DE REPONSE */}
                         <div className={`relative shrink-0 transition-all duration-200 ${
                             replyingTo?.id === msg.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                         }`}>
@@ -708,7 +700,7 @@ const Chat = () => {
                                     setReplyingTo(msg);
                                 }}
                                 className={`p-1.5 rounded-full transition-colors ${
-                                    replyingTo?.id === msg.id ? 'text-blue-500 bg-gray-100' : 'text-gray-400 hover:text-blue-500 hover:bg-gray-100'
+                                    replyingTo?.id === msg.id ? 'text-blue-500 bg-gray-100 dark:bg-gray-800' : 'text-gray-400 dark:text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-800'
                                 }`}
                                 title="Répondre"
                             >
@@ -726,7 +718,7 @@ const Chat = () => {
                                     setActiveEmojiMenu(activeEmojiMenu === msg.id ? null : msg.id);
                                 }}
                                 className={`p-1.5 rounded-full transition-colors ${
-                                    activeEmojiMenu === msg.id ? 'text-yellow-500 bg-gray-100' : 'text-gray-400 hover:text-yellow-500 hover:bg-gray-100'
+                                    activeEmojiMenu === msg.id ? 'text-yellow-500 bg-gray-100 dark:bg-gray-800' : 'text-gray-400 dark:text-gray-500 hover:text-yellow-500 dark:hover:text-yellow-400 hover:bg-gray-100 dark:hover:bg-gray-800'
                                 }`}
                             >
                                 <Smile className="w-4 h-4" />
@@ -734,7 +726,7 @@ const Chat = () => {
                             
                             {/* Emoji Picker */}
                             {activeEmojiMenu === msg.id && (
-                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white shadow-xl rounded-full px-2 py-1 flex gap-1 border border-gray-100 z-50 animate-in fade-in zoom-in duration-150" onClick={(e) => e.stopPropagation()}>
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white dark:bg-gray-800 shadow-xl rounded-full px-2 py-1 flex gap-1 border border-gray-100 dark:border-gray-700 z-50 animate-in fade-in zoom-in duration-150 transition-colors" onClick={(e) => e.stopPropagation()}>
                                     {['👍', '❤️', '😂', '😮', '😢', '🔥'].map(emoji => (
                                         <button key={emoji} onClick={() => { handleReaction(msg.id, emoji); setActiveEmojiMenu(null); }} className="hover:scale-125 transition-transform p-1.5 text-xl leading-none">
                                             {emoji}
@@ -746,33 +738,30 @@ const Chat = () => {
 
                         {/* 2. BULLE DE MESSAGE */}
                         <div className="relative min-w-0 flex flex-col"> 
-                          <div className={`px-3 py-1.5 rounded-2xl shadow-sm ${
+                          <div className={`px-3 py-1.5 rounded-2xl shadow-sm transition-colors duration-200 ${
                             msg.isOwn 
                               ? 'bg-primary-500 text-white rounded-br-none' 
-                              : 'bg-gray-100 text-gray-900 rounded-bl-none'
+                              : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-bl-none'
                           }`}>
                             <div className="block">
                               {msg.replyToId && (
-                                <div className={`mb-1.5 p-2 rounded-lg text-xs border-l-4 ${
-                                  msg.isOwn ? 'bg-primary-600 border-primary-300' : 'bg-gray-200 border-gray-400'
+                                <div className={`mb-1.5 p-2 rounded-lg text-xs border-l-4 transition-colors duration-200 ${
+                                  msg.isOwn ? 'bg-primary-600 border-primary-300' : 'bg-gray-200 dark:bg-gray-700 border-gray-400 dark:border-gray-500'
                                 }`}>
-                                  <span className={`font-bold block mb-0.5 ${msg.isOwn ? 'text-white' : 'text-gray-700'}`}>
+                                  <span className={`font-bold block mb-0.5 ${msg.isOwn ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}>
                                     {msg.replySenderId === user.id ? 'Vous' : (msg.replySenderName || 'Utilisateur')}
                                   </span>
-                                  {/* MODIF : Ajout de line-clamp pour que le texte ne casse pas la bulle */}
-                                  <p className={`line-clamp-2 max-h-10 overflow-hidden max-w-50 sm:max-w-62.5 ${msg.isOwn ? 'text-primary-100' : 'text-gray-500'}`}>
+                                  <p className={`line-clamp-2 max-h-10 overflow-hidden max-w-50 sm:max-w-62.5 ${msg.isOwn ? 'text-primary-100' : 'text-gray-500 dark:text-gray-400'}`}>
                                     {msg.replyContent}
                                   </p>
                                 </div>
                               )}
-                              {/* break-all pour gérer les chaînes sans espaces */}
                               <span className="text-[15px] leading-relaxed whitespace-pre-wrap break-all md:wrap-break-word">
                                 {msg.content}
                               </span>
 
-                              {/* Heure et Coches flottantes en bas à droite */}
                               <span className={`inline-flex items-baseline gap-1 text-[11px] select-none ml-2 float-right translate-y-2 ${
-                                msg.isOwn ? 'text-primary-100' : 'text-gray-400'
+                                msg.isOwn ? 'text-primary-100' : 'text-gray-400 dark:text-gray-500'
                               }`}>
                                 <span>{formatTime(msg.createdAt)}</span>
                                 {msg.isOwn && (
@@ -792,11 +781,11 @@ const Chat = () => {
                           {/* Réactions */}
                           {msg.reactions && msg.reactions.length > 0 && (
                             <div className={`absolute -bottom-3.5 ${msg.isOwn ? 'right-2' : 'left-2'} z-20`}>
-                              <div className="bg-white border border-gray-100 shadow-md rounded-full px-1.5 py-0.5 flex items-center gap-0.5 text-xs transition-all duration-300 ease-out animate-in zoom-in-50 cursor-default">
+                              <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-md rounded-full px-1.5 py-0.5 flex items-center gap-0.5 text-xs transition-all duration-300 ease-out animate-in zoom-in-50 cursor-default">
                                 {msg.reactions.slice(0, 3).map((r, i) => (
                                   <span key={i}>{r.emoji}</span>
                                 ))}
-                                {msg.reactions.length > 1 && <span className="text-[10px] font-bold text-gray-500 ml-0.5">{msg.reactions.length}</span>}
+                                {msg.reactions.length > 1 && <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 ml-0.5">{msg.reactions.length}</span>}
                               </div>
                             </div>
                           )}
@@ -804,7 +793,6 @@ const Chat = () => {
 
                       </div>
                     </div>
-                    {/* --- FIN STRUCTURE MESSAGE --- */}
 
                   </div>
                 );
@@ -813,11 +801,11 @@ const Chat = () => {
               {/* Typing indicator */}
               {Object.keys(typingUsers).length > 0 && (
                 <div className="flex justify-start">
-                  <div className="bg-gray-100 px-4 py-2 rounded-2xl rounded-bl-md">
+                  <div className="bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-2xl rounded-bl-md transition-colors duration-200">
                     <div className="flex gap-1">
-                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                      <span className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                     </div>
                   </div>
                 </div>
@@ -826,19 +814,18 @@ const Chat = () => {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* PREVIEW DE REPONSE (NOUVEAU) */}
+            {/* PREVIEW DE REPONSE */}
             {replyingTo && (
-              <div className="px-4 py-2 bg-gray-50 border-t flex items-start justify-between animate-in slide-in-from-bottom-2 duration-200 max-h-24 overflow-hidden">
+              <div className="px-4 py-2 bg-gray-50 dark:bg-gray-900 border-t dark:border-gray-800 flex items-start justify-between animate-in slide-in-from-bottom-2 duration-200 max-h-24 overflow-hidden transition-colors">
                 <div className="flex-1 min-w-0 border-l-4 border-primary-500 pl-3">
-                  <span className="text-xs font-bold text-primary-600 flex items-center gap-1 mb-1">
+                  <span className="text-xs font-bold text-primary-600 dark:text-primary-400 flex items-center gap-1 mb-1">
                     <Reply className="w-3 h-3" /> Répondre à {replyingTo.isOwn ? 'vous-même' : replyingTo.senderName || 'l\'utilisateur'}
                   </span>
-                  {/* MODIF : Ajout de line-clamp pour limiter à 2 lignes */}
-                  <p className="text-sm text-gray-600 line-clamp-2 overflow-hidden">{replyingTo.content}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 overflow-hidden">{replyingTo.content}</p>
                 </div>
                 <button 
                   onClick={() => setReplyingTo(null)}
-                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-full ml-2 transition-colors shrink-0"
+                  className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-full ml-2 transition-colors shrink-0"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -846,11 +833,11 @@ const Chat = () => {
             )}
             
             {/* Message input */}
-            <form onSubmit={handleSend} className="p-4 border-t flex gap-2 items-center">
+            <form onSubmit={handleSend} className="p-4 border-t dark:border-gray-800 flex gap-2 items-center transition-colors duration-200">
               <button
                 type="button"
                 onClick={() => setShowEventModal(true)}
-                className="p-3 text-gray-500 hover:text-primary-500 hover:bg-primary-50 rounded-full transition-colors"
+                className="p-3 text-gray-500 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-full transition-colors"
                 title="Schedule a date"
               >
                 <Calendar className="w-5 h-5" />
@@ -877,9 +864,9 @@ const Chat = () => {
             </form>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-gray-500">
+          <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400 transition-colors duration-200">
             <div className="text-center">
-              <MessageCircle className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+              <MessageCircle className="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-gray-600 transition-colors duration-200" />
               <p>Select a conversation to start chatting</p>
             </div>
           </div>
