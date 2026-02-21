@@ -97,7 +97,7 @@ router.get('/conversations', async (req, res) => {
 });
 
 /**
- * GET /api/chat/conversations/:odeclarationuserId
+ * GET /api/chat/conversations/:otherUserId
  * Get or create conversation with a user
  */
 router.get('/conversations/:otherUserId', async (req, res) => {
@@ -206,9 +206,10 @@ router.get('/:conversationId/messages', async (req, res) => {
         m.content,
         m.is_read,
         m.created_at,
-        m.reply_to_id, -- NOUVEAU
-        (SELECT content FROM messages WHERE id = m.reply_to_id) as reply_content, -- NOUVEAU
-        (SELECT first_name FROM users WHERE id = (SELECT sender_id FROM messages WHERE id = m.reply_to_id)) as reply_sender_name, -- NOUVEAU
+        m.reply_to_id,
+        (SELECT content FROM messages WHERE id = m.reply_to_id) as reply_content, 
+        (SELECT sender_id FROM messages WHERE id = m.reply_to_id) as reply_sender_id, -- MODIF: Ajout de l'ID de l'auteur de la citation
+        (SELECT first_name FROM users WHERE id = (SELECT sender_id FROM messages WHERE id = m.reply_to_id)) as reply_sender_name, 
         u.username,
         u.first_name,
         COALESCE(
@@ -243,9 +244,10 @@ router.get('/:conversationId/messages', async (req, res) => {
         createdAt: m.created_at,
         isOwn: m.sender_id === userId,
         reactions: m.reactions,
-        replyToId: m.reply_to_id,          // NOUVEAU
-        replyContent: m.reply_content,     // NOUVEAU
-        replySenderName: m.reply_sender_name // NOUVEAU
+        replyToId: m.reply_to_id,
+        replyContent: m.reply_content,     
+        replySenderId: m.reply_sender_id,     // MODIF: Mapping de l'ID 
+        replySenderName: m.reply_sender_name 
       })),
       hasMore: messages.length === parseInt(limit)
     });
@@ -309,11 +311,14 @@ router.post('/:conversationId/messages', async (req, res) => {
       [conversationId]
     );
 
+    // MODIF : Requête pour récupérer les infos du message parent
     let replyContent = null;
     let replySenderName = null;
+    let replySenderId = null;
+
     if (message.reply_to_id) {
         const parentMsg = await queryOne(`
-            SELECT m.content, u.first_name 
+            SELECT m.content, m.sender_id, u.first_name 
             FROM messages m 
             JOIN users u ON m.sender_id = u.id 
             WHERE m.id = $1
@@ -321,6 +326,7 @@ router.post('/:conversationId/messages', async (req, res) => {
         
         if (parentMsg) {
             replyContent = parentMsg.content;
+            replySenderId = parentMsg.sender_id;
             replySenderName = parentMsg.first_name;
         }
     }
@@ -334,7 +340,12 @@ router.post('/:conversationId/messages', async (req, res) => {
       senderName: req.user.first_name,
       content: cleanContent,
       isRead: false,
-      createdAt: message.created_at
+      createdAt: message.created_at,
+      // MODIF : Injection des infos de réponse pour que le destinataire puisse les afficher via WebSockets
+      replyToId: message.reply_to_id,
+      replyContent: replyContent,         
+      replySenderId: replySenderId,       
+      replySenderName: replySenderName    
     };
 
     sendChatMessage(io, parseInt(conversationId), messageData);
@@ -368,8 +379,10 @@ router.post('/:conversationId/messages', async (req, res) => {
         isRead: message.is_read,
         createdAt: message.created_at,
         isOwn: true,
-        replyToId: message.reply_to_id,     // NOUVEAU
-        replyContent: replyContent,         // NOUVEAU
+        // Pareil pour le retour HTTP local
+        replyToId: message.reply_to_id, 
+        replyContent: replyContent, 
+        replySenderId: replySenderId,
         replySenderName: replySenderName
       }
     });

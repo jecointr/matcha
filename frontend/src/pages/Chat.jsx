@@ -760,7 +760,7 @@ const Chat = () => {
                                     {msg.replySenderId === user.id ? 'Vous' : (msg.replySenderName || 'Utilisateur')}
                                   </span>
                                   {/* MODIF : Ajout de line-clamp pour que le texte ne casse pas la bulle */}
-                                  <p className={`line-clamp-2 max-h-10 overflow-hidden max-w-[200px] sm:max-w-[250px] ${msg.isOwn ? 'text-primary-100' : 'text-gray-500'}`}>
+                                  <p className={`line-clamp-2 max-h-10 overflow-hidden max-w-50 sm:max-w-62.5 ${msg.isOwn ? 'text-primary-100' : 'text-gray-500'}`}>
                                     {msg.replyContent}
                                   </p>
                                 </div>
