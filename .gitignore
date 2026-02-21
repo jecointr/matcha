@@ -5,6 +5,8 @@
 .env.production
 .env.development
 
+package-lock.json
+
 # Dependencies
 node_modules/
 */node_modules/

@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { 
   Send, Loader, MessageCircle, Circle, ArrowLeft, 
   ChevronLeft, User, Check, CheckCheck, Calendar,
-  MapPin, Clock, Video, Phone, Ban, Smile
+  MapPin, Clock, Video, Phone, Ban, Smile, Reply, X
 } from 'lucide-react';
 import EventModal from '../components/chat/EventModal';
 import VideoCallModal from '../components/chat/VideoCallModal';
@@ -47,6 +47,7 @@ const Chat = () => {
   const [events, setEvents] = useState([]);
   const [creatingEvent, setCreatingEvent] = useState(false);
   const [activeEmojiMenu, setActiveEmojiMenu] = useState(null);
+  const [replyingTo, setReplyingTo] = useState(null);
   
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -341,7 +342,9 @@ const Chat = () => {
 
     setSending(true);
     const content = newMessage.trim();
+    const currentReply = replyingTo; // <-- On sauvegarde la cible
     setNewMessage('');
+    setReplyingTo(null); // <-- On ferme la preview instantanément
     
     const tempId = Date.now();
     
@@ -352,14 +355,18 @@ const Chat = () => {
       isRead: false,
       createdAt: new Date().toISOString(),
       isOwn: true,
-      status: 'sending'
+      status: 'sending',
+      replyToId: currentReply?.id || null, // <-- Ajout pour affichage optimiste
+      replyContent: currentReply?.content || null, 
+      replySenderName: currentReply ? (currentReply.isOwn ? 'Vous' : currentReply.senderName) : null
     };
 
     setMessages(prev => [...prev, optimisticMessage]);
     scrollToBottom();
 
     try {
-      const response = await chatAPI.sendMessage(activeConversation.id, content);
+      // <-- MODIFIÉ : On passe l'ID de réponse à l'API
+      const response = await chatAPI.sendMessage(activeConversation.id, content, currentReply?.id);
       
       setMessages(prev => prev.map(msg => 
         msg.id === tempId ? { ...response.data.message, status: 'sent', isOwn: true } : msg
@@ -382,6 +389,7 @@ const Chat = () => {
       console.error('Failed to send message:', err);
       setMessages(prev => prev.filter(msg => msg.id !== tempId));
       setNewMessage(content); 
+      if (currentReply) setReplyingTo(currentReply); // <-- Restaure si erreur
     } finally {
       setSending(false);
     }
@@ -682,6 +690,24 @@ const Chat = () => {
                       {/* Inner Container : items-center assure le centrage vertical du bouton emoji */}
                       <div className={`flex items-center gap-2 max-w-[85%] md:max-w-[75%] ${msg.isOwn ? 'flex-row' : 'flex-row-reverse'}`}>
                         
+                        {/* BOUTON DE REPONSE (NOUVEAU) */}
+                        <div className={`relative shrink-0 transition-all duration-200 ${
+                            replyingTo?.id === msg.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                        }`}>
+                            <button 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setReplyingTo(msg);
+                                }}
+                                className={`p-1.5 rounded-full transition-colors ${
+                                    replyingTo?.id === msg.id ? 'text-blue-500 bg-gray-100' : 'text-gray-400 hover:text-blue-500 hover:bg-gray-100'
+                                }`}
+                                title="Répondre"
+                            >
+                                <Reply className="w-4 h-4" />
+                            </button>
+                        </div>
+
                         {/* 1. BOUTON DE REACTION */}
                         <div className={`relative shrink-0 transition-all duration-200 ${
                             activeEmojiMenu === msg.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
@@ -718,6 +744,18 @@ const Chat = () => {
                               : 'bg-gray-100 text-gray-900 rounded-bl-none'
                           }`}>
                             <div className="block">
+                              {msg.replyToId && (
+                                <div className={`mb-1.5 p-2 rounded-lg text-xs border-l-4 ${
+                                  msg.isOwn ? 'bg-primary-600 border-primary-300' : 'bg-gray-200 border-gray-400'
+                                }`}>
+                                  <span className={`font-bold block mb-0.5 ${msg.isOwn ? 'text-white' : 'text-gray-700'}`}>
+                                    {msg.replySenderName || 'Utilisateur'}
+                                  </span>
+                                  <p className={`truncate max-w-50 sm:max-w-62.5 ${msg.isOwn ? 'text-primary-100' : 'text-gray-500'}`}>
+                                    {msg.replyContent}
+                                  </p>
+                                </div>
+                              )}
                               {/* break-all pour gérer les chaînes sans espaces */}
                               <span className="text-[15px] leading-relaxed whitespace-pre-wrap break-all md:wrap-break-word">
                                 {msg.content}
@@ -779,6 +817,24 @@ const Chat = () => {
               <div ref={messagesEndRef} />
             </div>
 
+            {/* PREVIEW DE REPONSE (NOUVEAU) */}
+            {replyingTo && (
+              <div className="px-4 py-2 bg-gray-50 border-t flex items-center justify-between animate-in slide-in-from-bottom-2 duration-200">
+                <div className="flex-1 min-w-0 border-l-4 border-primary-500 pl-3">
+                  <span className="text-xs font-bold text-primary-600 flex items-center gap-1">
+                    <Reply className="w-3 h-3" /> Répondre à {replyingTo.isOwn ? 'vous-même' : replyingTo.senderName || 'l\'utilisateur'}
+                  </span>
+                  <p className="text-sm text-gray-600 truncate">{replyingTo.content}</p>
+                </div>
+                <button 
+                  onClick={() => setReplyingTo(null)}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-full ml-2 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+            
             {/* Message input */}
             <form onSubmit={handleSend} className="p-4 border-t flex gap-2 items-center">
               <button

@@ -206,6 +206,9 @@ router.get('/:conversationId/messages', async (req, res) => {
         m.content,
         m.is_read,
         m.created_at,
+        m.reply_to_id, -- NOUVEAU
+        (SELECT content FROM messages WHERE id = m.reply_to_id) as reply_content, -- NOUVEAU
+        (SELECT first_name FROM users WHERE id = (SELECT sender_id FROM messages WHERE id = m.reply_to_id)) as reply_sender_name, -- NOUVEAU
         u.username,
         u.first_name,
         COALESCE(
@@ -239,7 +242,10 @@ router.get('/:conversationId/messages', async (req, res) => {
         isRead: m.is_read,
         createdAt: m.created_at,
         isOwn: m.sender_id === userId,
-        reactions: m.reactions
+        reactions: m.reactions,
+        replyToId: m.reply_to_id,          // NOUVEAU
+        replyContent: m.reply_content,     // NOUVEAU
+        replySenderName: m.reply_sender_name // NOUVEAU
       })),
       hasMore: messages.length === parseInt(limit)
     });
@@ -258,7 +264,7 @@ router.post('/:conversationId/messages', async (req, res) => {
   try {
     const userId = req.userId;
     const { conversationId } = req.params;
-    const { content } = req.body;
+    const { content, replyToId } = req.body;
 
     // Validate content
     if (!content || typeof content !== 'string' || content.trim().length === 0) {
@@ -292,16 +298,32 @@ router.post('/:conversationId/messages', async (req, res) => {
 
     // Insert message
     const message = await queryOne(`
-      INSERT INTO messages (conversation_id, sender_id, content)
-      VALUES ($1, $2, $3)
-      RETURNING id, sender_id, content, is_read, created_at
-    `, [conversationId, userId, cleanContent]);
+      INSERT INTO messages (conversation_id, sender_id, content, reply_to_id)
+      VALUES ($1, $2, $3, $4)
+      RETURNING id, sender_id, content, is_read, created_at, reply_to_id
+    `, [conversationId, userId, cleanContent, replyToId || null]);
 
     // Update conversation timestamp
     await query(
       'UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = $1',
       [conversationId]
     );
+
+    let replyContent = null;
+    let replySenderName = null;
+    if (message.reply_to_id) {
+        const parentMsg = await queryOne(`
+            SELECT m.content, u.first_name 
+            FROM messages m 
+            JOIN users u ON m.sender_id = u.id 
+            WHERE m.id = $1
+        `, [message.reply_to_id]);
+        
+        if (parentMsg) {
+            replyContent = parentMsg.content;
+            replySenderName = parentMsg.first_name;
+        }
+    }
 
     // Send real-time message via Socket.io
     const io = req.app.get('io');
@@ -345,7 +367,10 @@ router.post('/:conversationId/messages', async (req, res) => {
         content: message.content,
         isRead: message.is_read,
         createdAt: message.created_at,
-        isOwn: true
+        isOwn: true,
+        replyToId: message.reply_to_id,     // NOUVEAU
+        replyContent: replyContent,         // NOUVEAU
+        replySenderName: replySenderName
       }
     });
 
