@@ -28,13 +28,13 @@ const ResendVerification = () => {
   if (submitted) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="card max-w-md w-full text-center">
-          <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <div className="card max-w-md w-full text-center transition-colors">
+          <div className="w-16 h-16 bg-primary-100 dark:bg-primary-900/40 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors">
             <Mail className="w-8 h-8 text-primary-500" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Check your email</h2>
-          <p className="text-gray-600 mb-6">
-            If an account exists with <strong>{email}</strong>, we've sent a new verification link.
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 transition-colors">Check your email</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6 transition-colors">
+            If an account exists with <strong>{email}</strong>, we've sent a link.
           </p>
           <Link to="/login" className="btn-secondary inline-flex items-center">
             <ArrowLeft className="w-4 h-4 mr-2" />

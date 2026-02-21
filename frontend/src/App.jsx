@@ -8,7 +8,7 @@ import { CallProvider } from './context/CallContext';
 // Route guards
 import { PrivateRoute, GuestRoute, CompleteProfileRoute } from './components/PrivateRoute';
 // Components
-import ThemeToggle from './components/ui/ThemeToggle'; // NOUVEAU
+import ThemeToggle from './components/ui/ThemeToggle';
 // Pages
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -110,7 +110,7 @@ const Header = () => {
                 
                 <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-2" />
                 
-                <ThemeToggle /> {/* NOUVEAU: BOUTON DARK MODE DESKTOP */}
+                <ThemeToggle />
                 
                 <button
                   onClick={handleLogout}
@@ -122,7 +122,7 @@ const Header = () => {
               </>
             ) : (
               <>
-                <ThemeToggle /> {/* NOUVEAU: BOUTON DARK MODE DESKTOP INVITE */}
+                <ThemeToggle />
                 <Link to="/login" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-4 py-2 transition-colors">
                   Login
                 </Link>
@@ -135,7 +135,7 @@ const Header = () => {
 
           {/* Mobile menu button */}
           <div className="flex items-center gap-2 md:hidden">
-            <ThemeToggle /> {/* NOUVEAU: BOUTON DARK MODE MOBILE */}
+            <ThemeToggle />
             <button
               className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               onClick={() => setIsMenuOpen(!isMenuOpen)}

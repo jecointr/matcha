@@ -111,3 +111,9 @@
 .dark .leaflet-container a.leaflet-popup-close-button:hover {
   color: #ffffff;
 }
+
+@layer base {
+  button {
+    @apply cursor-pointer;
+  }
+}

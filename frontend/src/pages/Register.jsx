@@ -66,16 +66,16 @@ const Register = () => {
   if (success) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="card max-w-md w-full text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <div className="card max-w-md w-full text-center transition-colors">
+          <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors">
             <Check className="w-8 h-8 text-green-500" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Check your email!</h2>
-          <p className="text-gray-600 mb-6">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 transition-colors">Check your email!</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6 transition-colors">
             We've sent a verification link to <strong>{formData.email}</strong>. 
             Please click the link to verify your account.
           </p>
-          <p className="text-sm text-gray-500 mb-4">
+          <p className="text-sm text-gray-500 dark:text-gray-500 mb-4 transition-colors">
             Didn't receive the email? Check your spam folder or
           </p>
           <Link to="/login" className="btn-primary w-full">
@@ -88,11 +88,11 @@ const Register = () => {
 
   return (
     <div className="min-h-[60vh] flex items-center justify-center py-8">
-      <div className="card max-w-md w-full">
+      <div className="card max-w-md w-full transition-colors duration-200">
         <div className="text-center mb-8">
           <Heart className="w-12 h-12 text-primary-500 mx-auto mb-2" fill="currentColor" />
-          <h1 className="text-2xl font-bold text-gray-900">Create Account</h1>
-          <p className="text-gray-600">Join Matcha and find your match</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white transition-colors">Create Account</h1>
+          <p className="text-gray-600 dark:text-gray-400 transition-colors">Join Matcha and find your match</p>
         </div>
 
         {errors.general && <Alert type="error">{errors.general}</Alert>}
@@ -151,18 +151,18 @@ const Register = () => {
             required
           />
 
-          {/* Password strength indicator */}
+          {/* Jauge de force - Adaptation Dark Mode */}
           {formData.password && (
             <div className="mb-4 -mt-2">
               <div className="flex gap-1 mb-1">
                 {[...Array(5)].map((_, i) => (
                   <div
                     key={i}
-                    className={`h-1 flex-1 rounded ${i < passwordStrength ? strengthColors[passwordStrength - 1] : 'bg-gray-200'}`}
+                    className={`h-1 flex-1 rounded transition-colors ${i < passwordStrength ? strengthColors[passwordStrength - 1] : 'bg-gray-200 dark:bg-gray-700'}`}
                   />
                 ))}
               </div>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
                 Password strength: {strengthLabels[passwordStrength - 1] || 'Too weak'}
               </p>
             </div>
@@ -184,7 +184,7 @@ const Register = () => {
           </Button>
         </form>
 
-        <p className="text-center text-gray-600 mt-6">
+        <p className="text-center text-gray-600 dark:text-gray-400 mt-6 transition-colors">
           Already have an account?{' '}
           <Link to="/login" className="text-primary-500 hover:underline font-medium">
             Sign in
