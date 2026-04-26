@@ -1,4 +1,6 @@
-# Matcha - Dating Application 💕
+# matcha
+
+Matcha - Dating Application 💕
 
 A modern dating web application built with Node.js, React, PostgreSQL, and Docker.
 
