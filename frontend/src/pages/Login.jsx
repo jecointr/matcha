@@ -3,14 +3,13 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Input, Button, Alert } from '../components/ui/Input';
 import { Heart } from 'lucide-react';
+import { API_URL } from '../config';
 
 const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
-  
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-  
+
   const [formData, setFormData] = useState({
     username: '',
     password: ''

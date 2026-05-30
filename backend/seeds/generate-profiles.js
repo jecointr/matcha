@@ -165,7 +165,7 @@ async function seed() {
     const passwordHash = await bcrypt.hash('Password123!', 12);
     console.log('🔐 Generated password hash');
 
-    const TOTAL_USERS = 500;
+    const TOTAL_USERS = 520;
     let created = 0;
     let errors = 0;
 

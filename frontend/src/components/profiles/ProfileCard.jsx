@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { MapPin, Heart, Star, Hash, Circle } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+import { API_URL } from '../../config';
 
 const ProfileCard = ({ profile, onLike, onUnlike, compact = false }) => {
   const getPhotoUrl = (url) => {

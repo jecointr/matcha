@@ -12,7 +12,7 @@ import EventModal from '../components/chat/EventModal';
 import VideoCallModal from '../components/chat/VideoCallModal';
 import { useCall } from '../context/CallContext';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+import { API_URL } from '../config';
 
 const Chat = () => {
   const navigate = useNavigate();

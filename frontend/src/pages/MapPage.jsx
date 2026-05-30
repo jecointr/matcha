@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { Link } from 'react-router-dom';
-import { profileAPI, userAPI } from '../services/api'; 
+import { profileAPI, userAPI } from '../services/api';
+import { API_URL } from '../config';
 import { Loader, MapPin, Navigation } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -149,7 +150,7 @@ const MapPage = () => {
               <div className="w-32 text-center transition-colors">
                 <div className="w-16 h-16 mx-auto mb-2 rounded-full overflow-hidden border-2 border-primary-500">
                   <img 
-                    src={user.profile_picture ? `${import.meta.env.VITE_API_URL.replace('/api', '')}/uploads/${user.profile_picture}` : '/default-avatar.png'} 
+                    src={user.profile_picture ? `${API_URL.replace('/api', '')}/uploads/${user.profile_picture}` : '/default-avatar.png'} 
                     alt={user.username}
                     className="w-full h-full object-cover"
                   />

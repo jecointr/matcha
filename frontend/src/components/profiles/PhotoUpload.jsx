@@ -5,7 +5,7 @@ import Cropper from 'react-easy-crop';
 import { userAPI } from '../../services/api';
 import getCroppedImg from '../../utils/canvasUtils';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+import { API_URL } from '../../config';
 
 const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
   const [uploading, setUploading] = useState(false);

@@ -4,7 +4,7 @@ import { matchAPI, profileAPI } from '../services/api';
 import { Loader, Eye, ArrowLeft, MapPin, Star, Circle } from 'lucide-react';
 import { Alert } from '../components/ui/Input';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+import { API_URL } from '../config';
 
 const Visitors = () => {
   const [visitors, setVisitors] = useState([]);

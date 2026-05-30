@@ -26,10 +26,33 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const httpServer = createServer(app);
 
+// Gestion des origines CORS.
+// - En DEV : on accepte n'importe quelle origine (localhost, IP réseau, etc.).
+//   => RIEN à changer quand on passe de localhost au réseau ou qu'on change
+//      d'IP/de wifi.
+// - En PROD : liste blanche stricte définie par CORS_ORIGINS (origines séparées
+//   par des virgules), à défaut FRONTEND_URL.
+const isProduction = process.env.NODE_ENV === 'production';
+
+const allowedOrigins = (process.env.CORS_ORIGINS || process.env.FRONTEND_URL || 'http://localhost:5173')
+  .split(',')
+  .map((origin) => origin.trim().replace(/\/$/, ''))
+  .filter(Boolean);
+
+const corsOrigin = (origin, callback) => {
+  // Pas d'origine = requête same-origin, curl, app mobile native... → OK
+  if (!origin) return callback(null, true);
+  // En dev, on reflète l'origine (compatible avec credentials, contrairement à '*')
+  if (!isProduction) return callback(null, true);
+  // En prod, liste blanche
+  if (allowedOrigins.includes(origin.replace(/\/$/, ''))) return callback(null, true);
+  return callback(new Error('Not allowed by CORS'));
+};
+
 // Socket.io setup
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: corsOrigin,
     methods: ['GET', 'POST'],
     credentials: true
   }
@@ -41,7 +64,7 @@ app.use(helmet({
 }));
 
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: corsOrigin,
   credentials: true
 }));
 

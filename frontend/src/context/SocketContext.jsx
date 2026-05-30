@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef } f
 import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 import { chatAPI, notificationAPI } from '../services/api';
+import { WS_URL } from '../config';
 
 const SocketContext = createContext(null);
 
@@ -80,8 +81,6 @@ export const SocketProvider = ({ children }) => {
     const token = localStorage.getItem('token');
     if (!token) return;
 
-    const WS_URL = import.meta.env.VITE_WS_URL || import.meta.env.VITE_API_URL || 'http://localhost:3000';
-    
     const newSocket = io(WS_URL, {
       auth: { token },
       transports: ['websocket', 'polling'],

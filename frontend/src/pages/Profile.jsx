@@ -12,7 +12,7 @@ import {
   Calendar, Star, Eye, ThumbsUp, Settings
 } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+import { API_URL } from '../config';
 
 const Profile = () => {
   const { user, refreshUser, logout } = useAuth();
