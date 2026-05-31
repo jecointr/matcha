@@ -210,33 +210,52 @@ router.post('/logout', authenticate, async (req, res) => {
 router.get('/verify-email', async (req, res) => {
   try {
     const { token } = req.query;
-    
+
     if (!token) {
-      return res.status(400).json({ error: 'Verification token required' });
+      return res.redirect(`${process.env.FRONTEND_URL}/verify-email?status=error`);
     }
-    
-    // Find user with valid token
+
+    // 1) On récupère le user via le token (même expiré ou non)
     const user = await queryOne(
-      `SELECT id, username FROM users 
-       WHERE verification_token = $1 AND verification_expires > CURRENT_TIMESTAMP`,
+      `SELECT id, is_verified, verification_expires 
+       FROM users 
+       WHERE verification_token = $1`,
       [token]
     );
-    
+
+    // 2) Token invalide OU déjà supprimé
     if (!user) {
-      return res.status(400).json({ error: 'Invalid or expired verification token' });
+      return res.redirect(`${process.env.FRONTEND_URL}/verify-email?status=error`);
     }
-    
-    // Update user as verified
+
+    // 3) Si déjà vérifié → on considère ça comme un succès (idempotent)
+    if (user.is_verified) {
+      return res.redirect(`${process.env.FRONTEND_URL}/verify-email?status=success`);
+    }
+
+    // 4) Vérification expiration
+    const now = new Date();
+    const expires = new Date(user.verification_expires);
+
+    if (expires < now) {
+      return res.redirect(`${process.env.FRONTEND_URL}/verify-email?status=error`);
+    }
+
+    // 5) Activation du compte
     await query(
-      `UPDATE users SET is_verified = true, verification_token = NULL, verification_expires = NULL WHERE id = $1`,
+      `UPDATE users 
+       SET is_verified = true, 
+           verification_token = NULL, 
+           verification_expires = NULL 
+       WHERE id = $1`,
       [user.id]
     );
-    
-    res.json({ message: 'Email verified successfully. You can now log in.' });
-    
+
+    return res.redirect(`${process.env.FRONTEND_URL}/verify-email?status=success`);
+
   } catch (error) {
     console.error('Email verification error:', error);
-    res.status(500).json({ error: 'Verification failed' });
+    return res.redirect(`${process.env.FRONTEND_URL}/verify-email?status=error`);
   }
 });
 
