@@ -52,7 +52,7 @@ export const handleOAuthUser = async (provider, profile) => {
 export const getGoogleAuthURL = (state) => {
   const rootUrl = 'https://accounts.google.com/o/oauth2/v2/auth';
   const options = {
-    redirect_uri: `${process.env.API_URL || 'http://localhost:3000'}/api/auth/google/callback`,
+    redirect_uri: `${process.env.BACKEND_URL || 'http://localhost:3000'}/api/auth/google/callback`,
     client_id: process.env.GOOGLE_CLIENT_ID,
     access_type: 'offline',
     response_type: 'code',
@@ -71,7 +71,7 @@ export const getGoogleUser = async (code) => {
     code,
     client_id: process.env.GOOGLE_CLIENT_ID,
     client_secret: process.env.GOOGLE_CLIENT_SECRET,
-    redirect_uri: `${process.env.API_URL || 'http://localhost:3000'}/api/auth/google/callback`,
+    redirect_uri: `${process.env.BACKEND_URL || 'http://localhost:3000'}/api/auth/google/callback`,
     grant_type: 'authorization_code',
   });
 
@@ -95,7 +95,7 @@ export const getGithubAuthURL = (state) => {
   const rootUrl = 'https://github.com/login/oauth/authorize';
   const options = {
     client_id: process.env.GITHUB_CLIENT_ID,
-    redirect_uri: `${process.env.API_URL || 'http://localhost:3000'}/api/auth/github/callback`,
+    redirect_uri: `${process.env.BACKEND_URL || 'http://localhost:3000'}/api/auth/github/callback`,
     scope: 'user:email',
     state,
   };
