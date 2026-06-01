@@ -40,9 +40,7 @@ export const initializeSocket = (io) => {
     await updateUserOnlineStatus(userId, true);
 
     // Join user's personal room for notifications
-    // AJOUT LOG DEBUG
     socket.join(`user:${userId}`);
-    console.log(`✅ Socket ${socket.id} joined room user:${userId}`);
 
     // Handle disconnection
     socket.on('disconnect', async () => {
@@ -63,7 +61,6 @@ export const initializeSocket = (io) => {
     // Chat: join conversation room
     socket.on('join:chat', (conversationId) => {
       socket.join(`chat:${conversationId}`);
-      console.log(`User ${userId} joined chat ${conversationId}`);
     });
 
     // Chat: leave conversation room
@@ -87,8 +84,7 @@ export const initializeSocket = (io) => {
     });
 
     socket.on('chat:read', ({ conversationId, senderId }) => {
-      // On informe l'utilisateur (senderId) que ses messages ont été lus par (userId)
-      console.log(`User ${userId} read messages from ${senderId} in conv ${conversationId}`);
+      // Tell the sender that their messages were read by this user
       io.to(`user:${senderId}`).emit('chat:read', {
         conversationId,
         readerId: userId,
@@ -96,41 +92,25 @@ export const initializeSocket = (io) => {
       });
     });
 
-    // --- WEBRTC SIGNALING (VIDEO/AUDIO) - DEBUG VERSION ---
-    
-    // 1. Initier un appel
+    // --- WebRTC signaling (audio/video) ---
+
+    // Initiate a call: forward the offer to the target user's personal room
     socket.on("call:user", ({ userToCall, signalData, fromUser, callType }) => {
-      console.log(`📡 DEBUG BACKEND: Appel demandé de ${fromUser.id} vers ${userToCall}`);
-      
-      const targetRoom = `user:${userToCall}`;
-      const roomSize = io.sockets.adapter.rooms.get(targetRoom)?.size || 0;
-
-      console.log(`🔍 DEBUG BACKEND: La room '${targetRoom}' contient ${roomSize} socket(s)`);
-
-      if (roomSize === 0) {
-        console.log("⚠️ DEBUG BACKEND: L'utilisateur cible n'est pas connecté au socket (room vide) !");
-      }
-
-      // On envoie l'offre à la room personnelle de l'utilisateur cible
-      io.to(targetRoom).emit("call:incoming", { 
-        signal: signalData, 
+      io.to(`user:${userToCall}`).emit("call:incoming", {
+        signal: signalData,
         from: fromUser,
         callType
       });
-      console.log("✅ DEBUG BACKEND: Signal 'call:incoming' envoyé !");
     });
 
-    // 2. Accepter un appel
+    // Answer a call: relay the answer back to the caller
     socket.on("call:answer", (data) => {
-      console.log(`📡 DEBUG BACKEND: Appel accepté par ${userId} pour ${data.to}`);
-      // On renvoie la réponse à l'appelant
       io.to(`user:${data.to}`).emit("call:accepted", data.signal);
     });
-    
-    // 3. Raccrocher / Refuser
+
+    // Hang up / decline
     socket.on("call:end", ({ to }) => {
-       console.log(`📡 DEBUG BACKEND: Appel terminé par ${userId}`);
-       io.to(`user:${to}`).emit("call:ended");
+      io.to(`user:${to}`).emit("call:ended");
     });
   });
 };
@@ -167,7 +147,7 @@ export const isUserOnline = (userId) => {
  */
 export const sendNotification = async (io, userId, type, data) => {
   try {
-    // 1. Sauvegarder en BDD
+    // 1. Save to DB
     const fromUserId = data.fromUserId || null;
     
     const insertQuery = `
@@ -183,7 +163,7 @@ export const sendNotification = async (io, userId, type, data) => {
       JSON.stringify(data)
     ]);
 
-    // 2. Récupérer les infos de l'envoyeur
+    // 2. Get the sender's info
     let fromUser = null;
     if (fromUserId) {
       fromUser = await queryOne(`
@@ -193,7 +173,7 @@ export const sendNotification = async (io, userId, type, data) => {
       `, [fromUserId]);
     }
 
-    // 3. Construire l'objet
+    // 3. Build the payload
     const notificationPayload = {
       id: result.id,
       type,
@@ -209,22 +189,12 @@ export const sendNotification = async (io, userId, type, data) => {
       message: data.message || 'New notification'
     };
 
-    // 4. Envoyer le socket
+    // 4. Emit the socket event
     io.to(`user:${userId}`).emit('notification', notificationPayload);
 
   } catch (error) {
     console.error('Error in sendNotification:', error);
   }
-};
-
-/**
- * Send message to a chat room
- * @param {Object} io - Socket.io instance
- * @param {number} conversationId - Conversation ID
- * @param {Object} message - Message object
- */
-export const sendChatMessage = (io, conversationId, message) => {
-  io.to(`chat:${conversationId}`).emit('chat:message', message);
 };
 
 /**
@@ -236,8 +206,8 @@ export const getConnectedUserIds = () => {
 };
 
 export const sendMessagesRead = (io, conversationId, readerId, senderId) => {
-  // On notifie l'utilisateur qui avait envoyé les messages (senderId)
-  // que l'utilisateur (readerId) a tout lu dans cette conversation.
+  // Notify the user who sent the messages (senderId) that the reader (readerId)
+  // has read everything in this conversation.
   io.to(`user:${senderId}`).emit('chat:read', {
     conversationId,
     readerId,

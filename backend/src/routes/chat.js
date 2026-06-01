@@ -1,13 +1,27 @@
 import { Router } from 'express';
 import { query, queryOne, queryAll } from '../config/database.js';
 import { authenticate, requireVerified } from '../middlewares/auth.js';
-import { sendNotification, sendChatMessage, sendMessagesRead, sendReaction } from '../config/socket.js';
+import { sendMessagesRead, sendReaction } from '../config/socket.js';
 import xss from 'xss';
 
 const router = Router();
 
 router.use(authenticate);
 router.use(requireVerified);
+
+/**
+ * Two users are "matched" if they liked each other.
+ * Used to cut the chat after an unmatch (per subject: no chat if one of them
+ * removes their like).
+ */
+const areMatched = async (a, b) => {
+  const m = await queryOne(`
+    SELECT 1 FROM likes l1
+    JOIN likes l2 ON l1.liked_id = l2.liker_id AND l1.liker_id = l2.liked_id
+    WHERE l1.liker_id = $1 AND l1.liked_id = $2
+  `, [a, b]);
+  return !!m;
+};
 
 /**
  * GET /api/chat/conversations
@@ -60,9 +74,15 @@ router.get('/conversations', async (req, res) => {
       END
       WHERE (c.user1_id = $1 OR c.user2_id = $1)
       AND NOT EXISTS (
-        SELECT 1 FROM blocks b 
-        WHERE (b.blocker_id = $1 AND b.blocked_id = u.id) 
+        SELECT 1 FROM blocks b
+        WHERE (b.blocker_id = $1 AND b.blocked_id = u.id)
            OR (b.blocker_id = u.id AND b.blocked_id = $1)
+      )
+      -- Not matched anymore (unmatch) → hide the conversation from the list
+      AND EXISTS (
+        SELECT 1 FROM likes l1
+        JOIN likes l2 ON l1.liked_id = l2.liker_id AND l1.liker_id = l2.liked_id
+        WHERE l1.liker_id = $1 AND l1.liked_id = u.id
       )
       ORDER BY COALESCE(
         (SELECT created_at FROM messages WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1),
@@ -182,12 +202,18 @@ router.get('/:conversationId/messages', async (req, res) => {
 
     // Verify user is part of conversation
     const conversation = await queryOne(
-      'SELECT id FROM conversations WHERE id = $1 AND (user1_id = $2 OR user2_id = $2)',
+      `SELECT id, CASE WHEN user1_id = $2 THEN user2_id ELSE user1_id END as other_user_id
+       FROM conversations WHERE id = $1 AND (user1_id = $2 OR user2_id = $2)`,
       [conversationId, userId]
     );
 
     if (!conversation) {
       return res.status(404).json({ error: 'Conversation not found' });
+    }
+
+    // Not matched anymore (unmatch) → chat access cut off (per subject)
+    if (!(await areMatched(userId, conversation.other_user_id))) {
+      return res.status(403).json({ error: 'You can only chat with matched users' });
     }
 
     // Build query
@@ -208,7 +234,7 @@ router.get('/:conversationId/messages', async (req, res) => {
         m.created_at,
         m.reply_to_id,
         (SELECT content FROM messages WHERE id = m.reply_to_id) as reply_content, 
-        (SELECT sender_id FROM messages WHERE id = m.reply_to_id) as reply_sender_id, -- MODIF: Ajout de l'ID de l'auteur de la citation
+        (SELECT sender_id FROM messages WHERE id = m.reply_to_id) as reply_sender_id,
         (SELECT first_name FROM users WHERE id = (SELECT sender_id FROM messages WHERE id = m.reply_to_id)) as reply_sender_name, 
         u.username,
         u.first_name,
@@ -246,7 +272,7 @@ router.get('/:conversationId/messages', async (req, res) => {
         reactions: m.reactions,
         replyToId: m.reply_to_id,
         replyContent: m.reply_content,     
-        replySenderId: m.reply_sender_id,     // MODIF: Mapping de l'ID 
+        replySenderId: m.reply_sender_id,
         replySenderName: m.reply_sender_name 
       })),
       hasMore: messages.length === parseInt(limit)
@@ -298,6 +324,11 @@ router.post('/:conversationId/messages', async (req, res) => {
       return res.status(403).json({ error: 'Cannot send message to this user' });
     }
 
+    // Not matched anymore (unmatch) → cannot send (per subject)
+    if (!(await areMatched(userId, conversation.other_user_id))) {
+      return res.status(403).json({ error: 'You can only message matched users' });
+    }
+
     // Insert message
     const message = await queryOne(`
       INSERT INTO messages (conversation_id, sender_id, content, reply_to_id)
@@ -311,7 +342,7 @@ router.post('/:conversationId/messages', async (req, res) => {
       [conversationId]
     );
 
-    // MODIF : Requête pour récupérer les infos du message parent
+    // Fetch the parent (replied-to) message info
     let replyContent = null;
     let replySenderName = null;
     let replySenderId = null;
@@ -341,35 +372,20 @@ router.post('/:conversationId/messages', async (req, res) => {
       content: cleanContent,
       isRead: false,
       createdAt: message.created_at,
-      // MODIF : Injection des infos de réponse pour que le destinataire puisse les afficher via WebSockets
+      // Include reply info so the recipient can render it over WebSockets
       replyToId: message.reply_to_id,
       replyContent: replyContent,         
       replySenderId: replySenderId,       
       replySenderName: replySenderName    
     };
 
-    sendChatMessage(io, parseInt(conversationId), messageData);
+    // Single chat:message emit, to the recipient's personal room: they receive it
+    // whether they're in this conversation, in another one, or elsewhere in the app —
+    // with no double delivery. This event drives the message display, the conversation
+    // list update AND the unread badge (recomputed from the messages table when needed).
+    // No dedicated 'message' notification anymore: it was filtered out of the list,
+    // useless for the badge, and caused a double count (chat:message + notification).
     io.to(`user:${conversation.other_user_id}`).emit('chat:message', messageData);
-
-    // Send notification to other user
-    sendNotification(io, conversation.other_user_id, 'message', {
-      conversationId: parseInt(conversationId),
-      fromUserId: userId,
-      fromUsername: req.user.username,
-      fromName: req.user.first_name,
-      preview: cleanContent.slice(0, 50) + (cleanContent.length > 50 ? '...' : ''),
-      message: `New message from ${req.user.first_name}`
-    });
-
-    // Create notification in database
-    await query(`
-      INSERT INTO notifications (user_id, type, from_user_id, data)
-      VALUES ($1, 'message', $2, $3)
-    `, [
-      conversation.other_user_id,
-      userId,
-      JSON.stringify({ conversationId: parseInt(conversationId), preview: cleanContent.slice(0, 50) })
-    ]);
 
     res.status(201).json({
       message: {
@@ -379,8 +395,7 @@ router.post('/:conversationId/messages', async (req, res) => {
         isRead: message.is_read,
         createdAt: message.created_at,
         isOwn: true,
-        // Pareil pour le retour HTTP local
-        replyToId: message.reply_to_id, 
+        replyToId: message.reply_to_id,
         replyContent: replyContent, 
         replySenderId: replySenderId,
         replySenderName: replySenderName
@@ -476,9 +491,8 @@ router.put('/:conversationId/read', async (req, res) => {
       WHERE conversation_id = $1 AND sender_id != $2 AND is_read = false
     `, [conversationId, userId]);
 
-    // 3. ACTUALISATION TEMPS RÉEL (Le Fix)
     const io = req.app.get('io');
-    // On notifie l'AUTRE utilisateur (celui qui a écrit les messages) que c'est lu
+    // Notify the OTHER user (the message author) that their messages were read
     sendMessagesRead(io, parseInt(conversationId), userId, conversation.other_user_id);
 
     res.json({ message: 'Messages marked as read' });
@@ -499,7 +513,7 @@ router.post('/messages/:messageId/react', async (req, res) => {
     const { messageId } = req.params;
     const { emoji } = req.body; // Envoyer null pour supprimer
 
-    // 1. Vérifier que le message existe et récupérer la conversation
+    // 1. Check the message exists and get its conversation
     const message = await queryOne(`
       SELECT m.id, m.conversation_id, c.user1_id, c.user2_id
       FROM messages m
@@ -509,7 +523,7 @@ router.post('/messages/:messageId/react', async (req, res) => {
 
     if (!message) return res.status(404).json({ error: 'Message not found' });
 
-    // 2. Vérifier que l'user fait partie de la conversation
+    // 2. Check the user is part of the conversation
     if (message.user1_id !== userId && message.user2_id !== userId) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
@@ -517,7 +531,7 @@ router.post('/messages/:messageId/react', async (req, res) => {
     // 3. Logique de Toggle (Upsert/Delete)
     let action = 'added';
     
-    // On regarde si une réaction existe déjà
+    // Check if a reaction already exists
     const existing = await queryOne(
       'SELECT id, emoji FROM message_reactions WHERE message_id = $1 AND user_id = $2',
       [messageId, userId]
@@ -525,16 +539,16 @@ router.post('/messages/:messageId/react', async (req, res) => {
 
     if (existing) {
       if (!emoji || existing.emoji === emoji) {
-        // Si on envoie null ou le même emoji -> Suppression
+        // Same emoji or null → remove the reaction
         await query('DELETE FROM message_reactions WHERE id = $1', [existing.id]);
         action = 'removed';
       } else {
-        // Sinon -> Mise à jour
+        // Otherwise → update
         await query('UPDATE message_reactions SET emoji = $1 WHERE id = $2', [emoji, existing.id]);
         action = 'updated';
       }
     } else if (emoji) {
-      // Pas de réaction existante et emoji fourni -> Insertion
+      // No existing reaction and an emoji given → insert
       await query(
         'INSERT INTO message_reactions (message_id, user_id, emoji) VALUES ($1, $2, $3)',
         [messageId, userId, emoji]

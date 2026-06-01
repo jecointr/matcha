@@ -3,8 +3,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "cube";
 CREATE EXTENSION IF NOT EXISTS "earthdistance";
 
--- ENUM types (IF NOT EXISTS n'existe pas nativement pour les TYPE sur les vieilles versions, 
--- mais on peut l'ignorer ou le gérer via un bloc DO, ici on garde simple)
+-- ENUM types (drop & create to stay idempotent on re-run)
 DROP TYPE IF EXISTS gender_type CASCADE;
 CREATE TYPE gender_type AS ENUM ('male', 'female', 'other');
 
@@ -20,8 +19,8 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255) UNIQUE NOT NULL,
     username VARCHAR(50) UNIQUE NOT NULL,
     
-    -- MODIFICATION OAUTH : Mot de passe peut être NULL pour Google/Github
-    password_hash VARCHAR(255), 
+    -- OAuth: password can be NULL for Google/GitHub accounts
+    password_hash VARCHAR(255),
     
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
@@ -166,8 +165,7 @@ CREATE TABLE IF NOT EXISTS events (
     CHECK (creator_id != target_id)
 );
 
--- Indexes (IF NOT EXISTS est implicite ou géré par le nom, on laisse tel quel pour la lisibilité)
--- Note: PostgreSQL ne supporte "CREATE INDEX IF NOT EXISTS" que depuis la v9.5, ce qui est ok ici.
+-- Indexes
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_location ON users USING gist (ll_to_earth(latitude, longitude));
@@ -207,7 +205,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Triggers (Drop & Create est la méthode la plus sûre pour les triggers dans un init script idempotent)
+-- Triggers (drop & create for an idempotent init script)
 DROP TRIGGER IF EXISTS update_users_updated_at ON users;
 CREATE TRIGGER update_users_updated_at
     BEFORE UPDATE ON users
@@ -243,7 +241,7 @@ CREATE TABLE IF NOT EXISTS message_reactions (
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     emoji VARCHAR(10) NOT NULL, -- Stocke l'emoji (ex: '❤️')
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(message_id, user_id) -- Un utilisateur ne peut réagir qu'une fois par message
+    UNIQUE(message_id, user_id) -- A user can react only once per message
 );
 
 CREATE INDEX IF NOT EXISTS idx_reactions_message ON message_reactions(message_id);

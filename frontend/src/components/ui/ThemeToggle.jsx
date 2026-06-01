@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react';
 import { Sun, Moon } from 'lucide-react';
 
 const ThemeToggle = () => {
-  // Par défaut, on cherche si l'user avait déjà choisi "dark", sinon on prend "light"
+  // Use the saved "dark"/"light" choice if any, otherwise fall back to the system preference
   const [isDark, setIsDark] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('theme');
       if (saved) return saved === 'dark';
-      // Optionnel : vérifier la préférence système par défaut
+      // Fall back to the system preference
       return window.matchMedia('(prefers-color-scheme: dark)').matches;
     }
     return false;

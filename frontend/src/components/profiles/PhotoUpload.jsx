@@ -3,11 +3,14 @@ import { Camera, X, Star, Loader, Plus, RotateCw, Check, Image as ImageIcon } fr
 import { useDropzone } from 'react-dropzone';
 import Cropper from 'react-easy-crop';
 import { userAPI } from '../../services/api';
+import { useToast, useConfirm } from '../../context/FeedbackContext';
 import getCroppedImg from '../../utils/canvasUtils';
 
 import { API_URL } from '../../config';
 
 const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   
@@ -80,12 +83,18 @@ const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
   };
 
   const handleDelete = async (photoId) => {
-    if (!confirm('Delete this photo?')) return;
+    const ok = await confirm({
+      title: 'Delete photo',
+      message: 'Delete this photo?',
+      confirmText: 'Delete',
+      danger: true
+    });
+    if (!ok) return;
     try {
       await userAPI.deletePhoto(photoId);
       onUpdate(photos.filter(p => p.id !== photoId));
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to delete photo');
+      toast.error(err.response?.data?.error || 'Failed to delete photo');
     }
   };
 
@@ -187,7 +196,7 @@ const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
         Drag and drop supported. Click star to set main photo.
       </p>
 
-      {/* --- MODALE D'ÉDITION --- */}
+      {/* Edit modal */}
       {imageSrc && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-300">
           <div className="bg-white dark:bg-gray-900 rounded-xl overflow-hidden w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh] transition-colors border dark:border-gray-800">
@@ -217,7 +226,7 @@ const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
               />
             </div>
 
-            {/* Contrôles */}
+            {/* Controls */}
             <div className="p-4 space-y-4 bg-gray-50 dark:bg-gray-800/50 flex-1 overflow-y-auto transition-colors duration-200">
               
               {/* Zoom & Rotation */}

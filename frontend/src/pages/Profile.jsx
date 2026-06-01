@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useToast, useConfirm } from '../context/FeedbackContext';
 import { userAPI } from '../services/api';
 import { authAPI } from '../services/api';
 import { Input, Button, Alert } from '../components/ui/Input';
@@ -9,14 +10,16 @@ import TagSelect from '../components/profiles/TagSelect';
 import LocationPicker from '../components/profiles/LocationPicker';
 import { 
   User, Camera, MapPin, Heart, Edit2, Save, X, 
-  Calendar, Star, Eye, ThumbsUp, Settings
+  Calendar, Star, Eye, ThumbsUp, Settings, Ban
 } from 'lucide-react';
 
 import { API_URL } from '../config';
 
 const Profile = () => {
   const { user, refreshUser, logout } = useAuth();
-  
+  const toast = useToast();
+  const confirm = useConfirm();
+
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
@@ -156,9 +159,13 @@ const Profile = () => {
   }
 
   const handleDeleteAccount = async () => {
-    if (!window.confirm("Êtes-vous sûr de vouloir supprimer définitivement votre compte ? Cette action est irréversible.")) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Delete account',
+      message: 'Are you sure you want to permanently delete your account? This action cannot be undone.',
+      confirmText: 'Delete',
+      danger: true
+    });
+    if (!ok) return;
 
     try {
       await userAPI.deleteAccount();
@@ -166,7 +173,7 @@ const Profile = () => {
       navigate('/login');
     } catch (err) {
       console.error(err);
-      setError("Impossible de supprimer le compte.");
+      toast.error("Could not delete the account.");
     }
   };
 
@@ -434,6 +441,20 @@ const Profile = () => {
                 >
                   Send Reset Email
                 </Button>
+            </div>
+
+            <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg transition-colors">
+              <h4 className="font-medium text-gray-900 dark:text-white mb-2">Blocked Users</h4>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                Manage the people you've blocked.
+              </p>
+              <Link
+                to="/blocked"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-lg text-sm transition-colors"
+              >
+                <Ban className="w-4 h-4" />
+                Manage blocked users
+              </Link>
             </div>
 
             <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg transition-colors">

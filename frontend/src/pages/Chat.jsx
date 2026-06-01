@@ -9,8 +9,8 @@ import {
   MapPin, Clock, Video, Phone, Ban, Smile, Reply, X
 } from 'lucide-react';
 import EventModal from '../components/chat/EventModal';
-import VideoCallModal from '../components/chat/VideoCallModal';
 import { useCall } from '../context/CallContext';
+import { useToast, useConfirm } from '../context/FeedbackContext';
 
 import { API_URL } from '../config';
 
@@ -33,6 +33,8 @@ const Chat = () => {
   } = useSocket();  
   
   const { callUser } = useCall();
+  const toast = useToast();
+  const confirm = useConfirm();
 
   const [conversations, setConversations] = useState([]);
   const [activeConversation, setActiveConversation] = useState(null);
@@ -57,16 +59,24 @@ const Chat = () => {
   const typingTimeouts = useRef({}); 
 
   const handleBlockUser = async () => {
-    if (!activeConversation || !window.confirm("Êtes-vous sûr de vouloir bloquer cet utilisateur ? Vous ne pourrez plus échanger.")) return;
+    if (!activeConversation) return;
+
+    const ok = await confirm({
+      title: 'Block user',
+      message: "Are you sure you want to block this user? You won't be able to message each other anymore.",
+      confirmText: 'Block',
+      danger: true
+    });
+    if (!ok) return;
 
     try {
         await profileAPI.block(activeConversation.otherUser.id);
-        alert("Utilisateur bloqué.");
+        toast.success("User blocked.");
         setActiveConversation(null);
         loadConversations();
     } catch (err) {
-        console.error("Erreur blocage:", err);
-        alert("Erreur lors du blocage.");
+        console.error("Block error:", err);
+        toast.error("Failed to block user.");
     }
   };
 
@@ -79,7 +89,16 @@ const Chat = () => {
   const loadEvents = async (targetId) => {
     try {
       const res = await eventAPI.getByUser(targetId);
-      setEvents(res.data.events.filter(e => e.status !== 'cancelled')); 
+      // The banner is not a log: only show what's useful right now.
+      // - pending: actionable (Accept/Decline/Cancel)
+      // - accepted UPCOMING: reminder of the next confirmed date
+      // declined / cancelled / past are hidden (history stays in the chat).
+      const now = Date.now();
+      setEvents(res.data.events.filter(e => {
+        if (e.status === 'pending') return true;
+        if (e.status === 'accepted') return new Date(e.event_date).getTime() >= now;
+        return false;
+      }));
     } catch (err) {
       console.error('Failed to load events', err);
     }
@@ -94,14 +113,24 @@ const Chat = () => {
       });
       setShowEventModal(false);
       loadEvents(activeConversation.otherUser.id);
-      
+
       await chatAPI.sendMessage(activeConversation.id, "📅 I just proposed a date! Check the details above.");
     } catch (err) {
-      alert(err.response?.data?.errors?.date || 'Failed to create event');
+      // 409 = a pending date already exists (#15); otherwise a validation/date error
+      toast.error(
+        err.response?.data?.error ||
+        err.response?.data?.errors?.date ||
+        'Failed to create event'
+      );
+      // Resync in case a pending date already exists
+      loadEvents(activeConversation.otherUser.id);
     } finally {
       setCreatingEvent(false);
     }
   };
+
+  // #15: only one "pending" date at a time between the two people
+  const hasPendingEvent = events.some(e => e.status === 'pending');
 
   useEffect(() => {
     const unsubscribe = onMessagesRead((data) => {
@@ -136,11 +165,18 @@ const Chat = () => {
     try {
       await eventAPI.updateStatus(eventId, status);
       loadEvents(activeConversation.otherUser.id);
-      
-      const msg = status === 'accepted' ? "🎉 I accepted the date!" : "❌ I declined the date.";
+
+      const msg = status === 'accepted'
+        ? "🎉 I accepted the date!"
+        : status === 'declined'
+          ? "❌ I declined the date."
+          : "🚫 I cancelled the date.";
       await chatAPI.sendMessage(activeConversation.id, msg);
     } catch (err) {
       console.error('Update status failed', err);
+      // Surface the error (e.g. date already resolved server-side) and resync the UI
+      toast.error(err.response?.data?.error || 'Failed to update the date.');
+      loadEvents(activeConversation.otherUser.id);
     }
   };
 
@@ -362,7 +398,7 @@ const Chat = () => {
       replyToId: currentReply?.id || null, 
       replyContent: currentReply?.content || null, 
       replySenderId: currentReply?.senderId || null, 
-      replySenderName: currentReply ? (currentReply.isOwn ? 'Vous' : currentReply.senderName) : null
+      replySenderName: currentReply ? (currentReply.isOwn ? 'You' : currentReply.senderName) : null
     };
 
     setMessages(prev => [...prev, optimisticMessage]);
@@ -391,8 +427,10 @@ const Chat = () => {
     } catch (err) {
       console.error('Failed to send message:', err);
       setMessages(prev => prev.filter(msg => msg.id !== tempId));
-      setNewMessage(content); 
-      if (currentReply) setReplyingTo(currentReply); 
+      setNewMessage(content);
+      if (currentReply) setReplyingTo(currentReply);
+      // e.g. 403 if no longer matched (unmatch) → explain instead of failing silently
+      toast.error(err.response?.data?.error || 'Failed to send message.');
     } finally {
       setSending(false);
     }
@@ -578,15 +616,23 @@ const Chat = () => {
                 </div>
               </Link>
               
-              <button 
-                onClick={() => callUser(activeConversation.otherUser.id, false)}
+              <button
+                onClick={() => callUser(activeConversation.otherUser.id, false, {
+                  id: activeConversation.otherUser.id,
+                  name: activeConversation.otherUser.firstName,
+                  picture: activeConversation.otherUser.profilePicture
+                })}
                 className="p-2 text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-full transition-all duration-200"
                 title="Start Audio Call"
               >
                 <Phone className="w-5 h-5" />
               </button>
-              <button 
-                onClick={() => callUser(activeConversation.otherUser.id, true)}
+              <button
+                onClick={() => callUser(activeConversation.otherUser.id, true, {
+                  id: activeConversation.otherUser.id,
+                  name: activeConversation.otherUser.firstName,
+                  picture: activeConversation.otherUser.profilePicture
+                })}
                 className="p-2 text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-full transition-all duration-200"
                 title="Start Video Call"
               >
@@ -596,7 +642,7 @@ const Chat = () => {
               <button 
                 onClick={handleBlockUser}
                 className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-all duration-200"
-                title="Bloquer cet utilisateur"
+                title="Block this user"
               >
                 <Ban className="w-5 h-5" />
               </button>
@@ -702,7 +748,7 @@ const Chat = () => {
                                 className={`p-1.5 rounded-full transition-colors ${
                                     replyingTo?.id === msg.id ? 'text-blue-500 bg-gray-100 dark:bg-gray-800' : 'text-gray-400 dark:text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-800'
                                 }`}
-                                title="Répondre"
+                                title="Reply"
                             >
                                 <Reply className="w-4 h-4" />
                             </button>
@@ -749,7 +795,7 @@ const Chat = () => {
                                   msg.isOwn ? 'bg-primary-600 border-primary-300' : 'bg-gray-200 dark:bg-gray-700 border-gray-400 dark:border-gray-500'
                                 }`}>
                                   <span className={`font-bold block mb-0.5 ${msg.isOwn ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}>
-                                    {msg.replySenderId === user.id ? 'Vous' : (msg.replySenderName || 'Utilisateur')}
+                                    {msg.replySenderId === user.id ? 'You' : (msg.replySenderName || 'User')}
                                   </span>
                                   <p className={`line-clamp-2 max-h-10 overflow-hidden max-w-50 sm:max-w-62.5 ${msg.isOwn ? 'text-primary-100' : 'text-gray-500 dark:text-gray-400'}`}>
                                     {msg.replyContent}
@@ -778,7 +824,7 @@ const Chat = () => {
                             </div>
                           </div>
 
-                          {/* Réactions */}
+                          {/* Reactions */}
                           {msg.reactions && msg.reactions.length > 0 && (
                             <div className={`absolute -bottom-3.5 ${msg.isOwn ? 'right-2' : 'left-2'} z-20`}>
                               <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-md rounded-full px-1.5 py-0.5 flex items-center gap-0.5 text-xs transition-all duration-300 ease-out animate-in zoom-in-50 cursor-default">
@@ -819,7 +865,7 @@ const Chat = () => {
               <div className="px-4 py-2 bg-gray-50 dark:bg-gray-900 border-t dark:border-gray-800 flex items-start justify-between animate-in slide-in-from-bottom-2 duration-200 max-h-24 overflow-hidden transition-colors">
                 <div className="flex-1 min-w-0 border-l-4 border-primary-500 pl-3">
                   <span className="text-xs font-bold text-primary-600 dark:text-primary-400 flex items-center gap-1 mb-1">
-                    <Reply className="w-3 h-3" /> Répondre à {replyingTo.isOwn ? 'vous-même' : replyingTo.senderName || 'l\'utilisateur'}
+                    <Reply className="w-3 h-3" /> Replying to {replyingTo.isOwn ? 'yourself' : replyingTo.senderName || 'user'}
                   </span>
                   <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 overflow-hidden">{replyingTo.content}</p>
                 </div>
@@ -837,8 +883,9 @@ const Chat = () => {
               <button
                 type="button"
                 onClick={() => setShowEventModal(true)}
-                className="p-3 text-gray-500 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-full transition-colors"
-                title="Schedule a date"
+                disabled={hasPendingEvent}
+                className="p-3 text-gray-500 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-gray-500"
+                title={hasPendingEvent ? 'A date proposal is already pending' : 'Schedule a date'}
               >
                 <Calendar className="w-5 h-5" />
               </button>
@@ -878,7 +925,6 @@ const Chat = () => {
         onSubmit={handleCreateEvent}
         loading={creatingEvent}
       />
-      <VideoCallModal />
     </div>
   );
 };

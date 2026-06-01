@@ -22,7 +22,6 @@ const EventModal = ({ isOpen, onClose, onSubmit, loading }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-      {/* Container - MODIF : dark:bg-gray-900 et dark:border */}
       <div className="bg-white dark:bg-gray-900 rounded-xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in duration-200 border dark:border-gray-800 transition-colors">
         
         {/* Header - Reste en primary-500 car il ressort bien dans les deux modes */}
@@ -40,7 +39,6 @@ const EventModal = ({ isOpen, onClose, onSubmit, loading }) => {
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              {/* MODIF : dark:text-gray-300 */}
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors">Date</label>
               <input
                 type="date"

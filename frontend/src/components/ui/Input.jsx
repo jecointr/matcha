@@ -14,7 +14,6 @@ export const Input = ({
   return (
     <div className={`mb-4 ${className}`}>
       {label && (
-        /* MODIF : dark:text-gray-300 */
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors">
           {label}
         </label>
@@ -22,7 +21,6 @@ export const Input = ({
       <div className="relative">
         <input
           type={isPassword && showPassword ? 'text' : type}
-          /* MODIF : Ajout d'une transition et gestion de l'erreur en dark mode */
           className={`input transition-all duration-200 ${
             error 
               ? 'border-red-500 focus:ring-red-500 dark:border-red-500' 
@@ -33,7 +31,6 @@ export const Input = ({
         {isPassword && (
           <button
             type="button"
-            /* MODIF : cursor-pointer et couleurs adaptatives */
             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 cursor-pointer transition-colors"
             onClick={() => setShowPassword(!showPassword)}
             tabIndex={-1}
@@ -43,7 +40,6 @@ export const Input = ({
         )}
       </div>
       {error && (
-        /* MODIF : dark:text-red-400 */
         <p className="mt-1 text-sm text-red-500 dark:text-red-400 transition-colors animate-fade-in">
           {error}
         </p>
@@ -67,7 +63,6 @@ export const Button = ({
   };
   
   return (
-    /* MODIF : Ajout de cursor-pointer et effet de scale au clic */
     <button
       className={`${variants[variant]} ${className} cursor-pointer transition-all active:scale-[0.98] disabled:active:scale-100 disabled:cursor-not-allowed`}
       disabled={disabled || loading}
@@ -88,7 +83,7 @@ export const Button = ({
 
 export const Alert = ({ type = 'error', children, onClose }) => {
   const styles = {
-    /* MODIF : Couleurs adoucies pour le Dark Mode avec bg opaque à 20% */
+    /* Softer dark-mode colors with a 20% opaque background */
     error: 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 border-red-200 dark:border-red-900/50',
     success: 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300 border-green-200 dark:border-green-900/50',
     warning: 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300 border-yellow-200 dark:border-yellow-900/50',

@@ -215,7 +215,7 @@ router.get('/verify-email', async (req, res) => {
       return res.redirect(`${process.env.FRONTEND_URL}/verify-email?status=error`);
     }
 
-    // 1) On récupère le user via le token (même expiré ou non)
+    // 1) Get the user from the token (whether expired or not)
     const user = await queryOne(
       `SELECT id, is_verified, verification_expires 
        FROM users 
@@ -223,17 +223,17 @@ router.get('/verify-email', async (req, res) => {
       [token]
     );
 
-    // 2) Token invalide OU déjà supprimé
+    // 2) Invalid token OR already deleted
     if (!user) {
       return res.redirect(`${process.env.FRONTEND_URL}/verify-email?status=error`);
     }
 
-    // 3) Si déjà vérifié → on considère ça comme un succès (idempotent)
+    // 3) Already verified → treat as success (idempotent)
     if (user.is_verified) {
       return res.redirect(`${process.env.FRONTEND_URL}/verify-email?status=success`);
     }
 
-    // 4) Vérification expiration
+    // 4) Expiration check
     const now = new Date();
     const expires = new Date(user.verification_expires);
 
@@ -462,13 +462,13 @@ router.get('/google/callback', async (req, res) => {
     const code = req.query.code;
     if (!code) throw new Error('No code provided');
 
-    // Récupération manuelle des infos Google
+    // Manually fetch the Google profile
     const googleProfile = await getGoogleUser(code);
-    
-    // Logique métier (création/lien en base)
+
+    // Business logic (create/link in DB)
     const user = await handleOAuthUser('google', googleProfile);
 
-    // Connexion réussie : Token + Redirect
+    // Successful login: token + redirect
     handleOAuthSuccess(user, res);
   } catch (error) {
     console.error('Google Auth Error:', error.message);
@@ -478,7 +478,7 @@ router.get('/google/callback', async (req, res) => {
 
 // 3. GitHub Login
 router.get('/github', (req, res) => {
-  // Redirection manuelle vers l'URL GitHub
+  // Manual redirect to the GitHub URL
   res.redirect(getGithubAuthURL());
 });
 
@@ -498,9 +498,9 @@ router.get('/github/callback', async (req, res) => {
   }
 });
 
-// Helper pour finaliser la connexion OAuth
+// Helper to finalize the OAuth login
 const handleOAuthSuccess = async (user, res) => {
-    // Mettre à jour le statut en ligne
+    // Update online status
     await query(
       'UPDATE users SET is_online = true, last_seen = CURRENT_TIMESTAMP WHERE id = $1',
       [user.id]

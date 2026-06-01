@@ -120,7 +120,7 @@ const TagSelect = ({ selectedTags = [], onUpdate, maxTags = 10 }) => {
             className="input"
           />
 
-          {/* Dropdown - Support du Dark Mode et ombres adaptées */}
+          {/* Dropdown - dark mode support and adapted shadows */}
           {showDropdown && (searchQuery || filteredTags.length > 0) && (
             <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg shadow-xl max-h-48 overflow-auto transition-colors duration-200">
               {/* Create new tag option */}
@@ -157,7 +157,7 @@ const TagSelect = ({ selectedTags = [], onUpdate, maxTags = 10 }) => {
         </div>
       )}
 
-      {/* Click outside to close - On augmente le Z-index pour s'assurer qu'il couvre bien l'arrière-plan */}
+      {/* Click outside to close - higher z-index so it covers the background */}
       {showDropdown && (
         <div
           className="fixed inset-0 z-0"

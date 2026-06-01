@@ -2,7 +2,6 @@ import { Router } from 'express';
 import { queryOne, queryAll, query } from '../config/database.js';
 import { authenticate, requireVerified } from '../middlewares/auth.js';
 import { validateEvent } from '../utils/validators.js';
-import { sendNotification, isUserOnline } from '../config/socket.js';
 
 const router = Router();
 
@@ -35,6 +34,22 @@ router.post('/', async (req, res) => {
       return res.status(403).json({ error: 'You can only schedule dates with matched users' });
     }
 
+    // 2b. Only one "pending" date at a time between these two people (whoever
+    // created it). It must be accepted / declined / cancelled before a new one
+    // can be proposed.
+    const existingPending = await queryOne(`
+      SELECT 1 FROM events
+      WHERE status = 'pending'
+        AND ((creator_id = $1 AND target_id = $2)
+          OR (creator_id = $2 AND target_id = $1))
+    `, [creatorId, targetId]);
+
+    if (existingPending) {
+      return res.status(409).json({
+        error: 'A pending date proposal already exists with this user. Wait for it to be accepted, declined or cancelled before proposing a new one.'
+      });
+    }
+
     // 3. Create Event
     const event = await queryOne(`
       INSERT INTO events (creator_id, target_id, event_date, location, description)
@@ -42,15 +57,9 @@ router.post('/', async (req, res) => {
       RETURNING *
     `, [creatorId, targetId, date, location, description]);
 
-    // 4. Send Notification via Socket
-    const io = req.app.get('io');
-    await sendNotification(io, targetId, 'event_request', {
-      eventId: event.id,
-      fromUserId: creatorId,
-      message: 'Proposed a date!',
-      eventDate: date
-    });
-
+    // No dedicated "event_*" notification. The proposal is carried by a chat message
+    // (sent from the frontend) → the recipient is notified like for any message, and
+    // the date banner shows up in the chat.
     res.status(201).json({ event });
 
   } catch (error) {
@@ -101,24 +110,24 @@ router.put('/:id/status', async (req, res) => {
     const event = await queryOne('SELECT * FROM events WHERE id = $1', [id]);
     if (!event) return res.status(404).json({ error: 'Event not found' });
 
-    // Logic: 
+    // A resolved date (accepted/declined/cancelled) is TERMINAL: only a "pending"
+    // proposal can still change status.
+    if (event.status !== 'pending') {
+      return res.status(409).json({ error: 'This date has already been resolved and can no longer be changed.' });
+    }
+
+    // Logic:
     // - Creator can only Cancel.
     // - Target can Accept or Decline.
     let allowed = false;
-    let notifType = '';
-    let notifTarget = null;
 
     if (event.creator_id === userId) {
       if (status === 'cancelled') {
         allowed = true;
-        notifType = 'event_cancelled';
-        notifTarget = event.target_id;
       }
     } else if (event.target_id === userId) {
       if (['accepted', 'declined'].includes(status)) {
         allowed = true;
-        notifType = status === 'accepted' ? 'event_accepted' : 'event_declined';
-        notifTarget = event.creator_id;
       }
     }
 
@@ -131,15 +140,8 @@ router.put('/:id/status', async (req, res) => {
       WHERE id = $2 RETURNING *
     `, [status, id]);
 
-    // Send notification
-    const io = req.app.get('io');
-    await sendNotification(io, notifTarget, notifType, {
-      eventId: event.id,
-      fromUserId: userId,
-      message: `Date ${status}`,
-      eventDate: event.event_date
-    });
-
+    // No "event_*" notification. accept / decline / cancel is carried by a chat
+    // message (sent from the frontend).
     res.json({ event: updatedEvent });
 
   } catch (error) {

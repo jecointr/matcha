@@ -14,7 +14,7 @@ const handleProviderLogin = async (accessToken, refreshToken, profile, done) => 
       return done(new Error('No email found from provider'), null);
     }
 
-    // 1. Chercher si l'utilisateur existe déjà via auth_id
+    // 1. Look up the user by auth_id
     let user = await queryOne(
       'SELECT * FROM users WHERE auth_provider = $1 AND auth_id = $2',
       [provider, providerId]
@@ -24,8 +24,8 @@ const handleProviderLogin = async (accessToken, refreshToken, profile, done) => 
       return done(null, user);
     }
 
-    // 2. Chercher si l'email existe déjà (compte local existant)
-    // On lie le compte OAuth au compte existant pour éviter les doublons
+    // 2. Look up an existing local account by email
+    // Link the OAuth account to it to avoid duplicates
     user = await queryOne('SELECT * FROM users WHERE email = $1', [email]);
 
     if (user) {
@@ -36,12 +36,12 @@ const handleProviderLogin = async (accessToken, refreshToken, profile, done) => 
       return done(null, user);
     }
 
-    // 3. Créer un nouvel utilisateur
-    // Générer un username unique basé sur le nom ou email
+    // 3. Create a new user
+    // Generate a unique username from the name or email
     let baseUsername = profile.username || email.split('@')[0];
-    baseUsername = baseUsername.substring(0, 40); // Limite DB
-    
-    // Ajout d'un suffixe aléatoire pour garantir l'unicité
+    baseUsername = baseUsername.substring(0, 40); // DB limit
+
+    // Add a random suffix to ensure uniqueness
     const uniqueSuffix = Math.floor(Math.random() * 10000);
     const username = `${baseUsername}_${uniqueSuffix}`;
 

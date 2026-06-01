@@ -9,7 +9,7 @@ const LocationPicker = ({ location, onUpdate }) => {
   const [manualCity, setManualCity] = useState(location?.city || '');
   const [manualCountry, setManualCountry] = useState(location?.country || '');
 
-  // Récupérer la position GPS
+  // Get the GPS position
   const handleGetLocation = async () => {
     if (!navigator.geolocation) {
       setError('Geolocation is not supported by your browser');
@@ -25,10 +25,10 @@ const LocationPicker = ({ location, onUpdate }) => {
         const { latitude, longitude } = position.coords;
 
         try {
-          // Reverse geocoding pour obtenir ville/pays
+          // Reverse geocoding to get city/country
           const geoData = await reverseGeocode(latitude, longitude);
-          
-          // Sauvegarde sur le serveur
+
+          // Save to the server
           await userAPI.updateLocation({
             latitude,
             longitude,
@@ -52,9 +52,10 @@ const LocationPicker = ({ location, onUpdate }) => {
           setLoading(false);
         }
       },
-      (err) => {
+      () => {
+        // Permission denied or unavailable → manual entry
         setLoading(false);
-        setError('Location permission denied or unavailable. Please enter manually.');
+        setError('Location permission denied or unavailable. Please enter your city manually.');
         setManualMode(true);
       },
       {

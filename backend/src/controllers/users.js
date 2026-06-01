@@ -78,6 +78,46 @@ export const blockUser = async (req, res) => {
   }
 };
 
+export const getBlockedUsers = async (req, res) => {
+  const blockerId = req.userId;
+
+  try {
+    const blocked = await queryAll(
+      `SELECT
+         u.id, u.username, u.first_name, u.last_name,
+         DATE_PART('year', AGE(u.birth_date)) as age,
+         u.city, u.country, u.fame_rating, u.is_online,
+         (SELECT filename FROM photos WHERE user_id = u.id AND is_profile_picture = true LIMIT 1) as profile_picture,
+         b.created_at as blocked_at
+       FROM blocks b
+       JOIN users u ON u.id = b.blocked_id
+       WHERE b.blocker_id = $1
+       ORDER BY b.created_at DESC`,
+      [blockerId]
+    );
+
+    res.json({
+      blocked: blocked.map(u => ({
+        id: u.id,
+        username: u.username,
+        firstName: u.first_name,
+        lastName: u.last_name,
+        age: u.age ? parseInt(u.age) : null,
+        city: u.city,
+        country: u.country,
+        fameRating: u.fame_rating,
+        isOnline: u.is_online,
+        profilePicture: u.profile_picture ? `/uploads/${u.profile_picture}` : null,
+        blockedAt: u.blocked_at
+      }))
+    });
+
+  } catch (error) {
+    console.error('Get blocked users error:', error);
+    res.status(500).json({ error: "Erreur lors du chargement des utilisateurs bloqués" });
+  }
+};
+
 export const unblockUser = async (req, res) => {
   const blockerId = req.userId;
   const { id: blockedId } = req.params;

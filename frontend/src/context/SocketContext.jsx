@@ -106,13 +106,13 @@ export const SocketProvider = ({ children }) => {
     newSocket.on('notification', (notification) => {
       console.log('Received notification:', notification);
       
-      // MODIFICATION 1 : Vérifier si l'utilisateur est DÉJÀ sur le chat en question
+      // Skip the +1 if the user is already viewing this conversation
       const url = new URL(window.location.href);
       const isChat = url.pathname === '/chat';
       const activeChatId = url.searchParams.get('id');
 
       if (notification.type === 'message') {
-        // Si on est déjà sur le chat, on ignore totalement la notif (pas de +1)
+        // Already on this chat → ignore the notification (no +1)
         if (isChat && Number(activeChatId) === Number(notification.data?.conversationId)) {
           return;
         }
@@ -131,7 +131,7 @@ export const SocketProvider = ({ children }) => {
         return;
       }
 
-      // MODIFICATION 2 : On fait la même vérification pour le compteur global de messages
+      // Same check for the global unread-message counter
       const url = new URL(window.location.href);
       const isChat = url.pathname === '/chat';
       const activeChatId = url.searchParams.get('id');

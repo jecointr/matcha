@@ -4,7 +4,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import eventRoutes from './routes/events.js';
@@ -26,12 +26,10 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const httpServer = createServer(app);
 
-// Gestion des origines CORS.
-// - En DEV : on accepte n'importe quelle origine (localhost, IP réseau, etc.).
-//   => RIEN à changer quand on passe de localhost au réseau ou qu'on change
-//      d'IP/de wifi.
-// - En PROD : liste blanche stricte définie par CORS_ORIGINS (origines séparées
-//   par des virgules), à défaut FRONTEND_URL.
+// CORS origin handling.
+// - DEV: accept any origin (localhost, LAN IP, etc.) — nothing to change when
+//   moving from localhost to the network or switching IP/wifi.
+// - PROD: strict allowlist from CORS_ORIGINS (comma-separated), or FRONTEND_URL.
 const isProduction = process.env.NODE_ENV === 'production';
 
 const allowedOrigins = (process.env.CORS_ORIGINS || process.env.FRONTEND_URL || 'http://localhost:5173')
@@ -40,11 +38,11 @@ const allowedOrigins = (process.env.CORS_ORIGINS || process.env.FRONTEND_URL || 
   .filter(Boolean);
 
 const corsOrigin = (origin, callback) => {
-  // Pas d'origine = requête same-origin, curl, app mobile native... → OK
+  // No origin = same-origin request, curl, native mobile app... → OK
   if (!origin) return callback(null, true);
-  // En dev, on reflète l'origine (compatible avec credentials, contrairement à '*')
+  // In dev, reflect the origin (works with credentials, unlike '*')
   if (!isProduction) return callback(null, true);
-  // En prod, liste blanche
+  // In prod, allowlist
   if (allowedOrigins.includes(origin.replace(/\/$/, ''))) return callback(null, true);
   return callback(new Error('Not allowed by CORS'));
 };
@@ -68,6 +66,17 @@ app.use(cors({
   credentials: true
 }));
 
+// Trust the reverse proxy (nginx = single hop) so req.ip is the REAL client IP
+// (read from X-Forwarded-For) and not the nginx container IP. Without this, all
+// clients share one IP → a single "too many attempts" blocks EVERYONE
+// (all users / browsers / machines).
+app.set('trust proxy', 1);
+
+// Body parsing BEFORE rate limiting: the auth limiter needs req.body to build a
+// per-account key (see keyGenerator below).
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
 // Rate limiting
 const limiter = rateLimit({
   windowMs: (parseInt(process.env.RATE_LIMIT_WINDOW_MIN) || 15) * 60 * 1000,
@@ -82,15 +91,20 @@ app.use('/api/', limiter);
 const authLimiter = rateLimit({
   windowMs: (parseInt(process.env.AUTH_RATE_LIMIT_WINDOW_MIN) || 60) * 60 * 1000,
   max: parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Key = real IP + attempted username. On a shared IP (localhost, LAN, NAT),
+  // failed attempts on one account no longer lock other accounts/browsers;
+  // brute-force protection stays active per (account, IP). ipKeyGenerator handles IPv6.
+  keyGenerator: (req) => {
+    const username = (req.body?.username || '').toString().trim().toLowerCase();
+    return `${ipKeyGenerator(req.ip)}:${username}`;
+  },
   message: { error: 'Too many login attempts, please try again after an hour' }
 });
 app.use('/api/auth/login', authLimiter);
 
 // --- SUPPRESSION DE PASSPORT.INITIALIZE() ---
-
-// Body parsing
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Static files for uploads
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));

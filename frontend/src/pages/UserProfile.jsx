@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { profileAPI } from '../services/api';
+import { useToast, useConfirm } from '../context/FeedbackContext';
 import { Alert, Button } from '../components/ui/Input';
 import { 
   MapPin, Heart, Star, Calendar, Circle, MessageCircle,
@@ -12,7 +13,9 @@ import { API_URL } from '../config';
 const UserProfile = () => {
   const { userId } = useParams();
   const navigate = useNavigate();
-  
+  const toast = useToast();
+  const confirm = useConfirm();
+
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -74,15 +77,20 @@ const UserProfile = () => {
   };
 
   const handleBlock = async () => {
-    if (!confirm('Are you sure you want to block this user? They won\'t be able to see your profile or contact you.')) {
-      return;
-    }
-    
+    const ok = await confirm({
+      title: 'Block user',
+      message: "Are you sure you want to block this user? They won't be able to see your profile or contact you.",
+      confirmText: 'Block',
+      danger: true
+    });
+    if (!ok) return;
+
     try {
       await profileAPI.block(userId);
+      toast.success('User blocked.');
       navigate('/browse');
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to block user');
+      toast.error(err.response?.data?.error || 'Failed to block user');
     }
   };
 
@@ -91,9 +99,9 @@ const UserProfile = () => {
       await profileAPI.report(userId, reportReason);
       setShowReportModal(false);
       setReportReason('');
-      alert('Report submitted. Thank you for helping keep Matcha safe.');
+      toast.success('Report submitted. Thank you for helping keep Matcha safe.');
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to submit report');
+      toast.error(err.response?.data?.error || 'Failed to submit report');
     }
   };
 

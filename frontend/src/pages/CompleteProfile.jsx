@@ -8,6 +8,9 @@ import TagSelect from '../components/profiles/TagSelect';
 import LocationPicker from '../components/profiles/LocationPicker';
 import { User, ChevronRight, ChevronLeft, Check } from 'lucide-react';
 
+// Must stay in sync with MIN_TAGS on the backend (users.js)
+const MIN_TAGS = 3;
+
 const CompleteProfile = () => {
   const navigate = useNavigate();
   const { user, updateUser, refreshUser } = useAuth();
@@ -136,6 +139,13 @@ const CompleteProfile = () => {
     if (step === 4) {
       if (!location?.city) {
         setError('Please set your location');
+        return;
+      }
+    }
+
+    if (step === 5) {
+      if (tags.length < MIN_TAGS) {
+        setError(`Please select at least ${MIN_TAGS} interest${MIN_TAGS > 1 ? 's' : ''}`);
         return;
       }
     }

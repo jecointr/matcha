@@ -4,10 +4,11 @@ import { Link } from 'react-router-dom';
 import { profileAPI, userAPI } from '../services/api';
 import { API_URL } from '../config';
 import { Loader, MapPin, Navigation } from 'lucide-react';
+import { useToast } from '../context/FeedbackContext';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
-// Fix pour les icônes Leaflet par défaut
+// Fix for the default Leaflet icons
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
@@ -29,6 +30,7 @@ const RecenterMap = ({ lat, lng }) => {
 };
 
 const MapPage = () => {
+  const toast = useToast();
   const [users, setUsers] = useState([]);
   const [myLocation, setMyLocation] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -64,7 +66,7 @@ const MapPage = () => {
   const handleLocateMe = () => {
     setLocating(true);
     if (!navigator.geolocation) {
-      alert("Geolocation is not supported by your browser");
+      toast.error("Geolocation is not supported by your browser.");
       setLocating(false);
       return;
     }
@@ -86,7 +88,7 @@ const MapPage = () => {
       },
       (error) => {
         console.error("Location error", error);
-        alert("Unable to retrieve your location");
+        toast.error("Unable to retrieve your location.");
         setLocating(false);
       }
     );
@@ -103,7 +105,7 @@ const MapPage = () => {
   return (
     <div className="h-[calc(100vh-140px)] w-full relative rounded-xl overflow-hidden shadow-xl border border-gray-200 dark:border-gray-800 transition-colors duration-200">
       
-      {/* Bouton de géolocalisation */}
+      {/* Geolocation button */}
       <button
         onClick={handleLocateMe}
         disabled={locating}

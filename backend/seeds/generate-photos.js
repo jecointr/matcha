@@ -101,11 +101,16 @@ async function generatePhotos() {
   console.log('📸 Starting photo generation (Robust Mode)...\n');
 
   try {
+    // IMPORTANT: only generate avatars for seeded fake profiles (email @example.com).
+    // Without this filter, a real account that hasn't uploaded a photo yet would get a
+    // fake avatar as its profile picture, which would then sit "on top" of the real
+    // photo it picks later (isFirst === false).
     const usersResult = await pool.query(`
       SELECT u.id, u.username, u.first_name, u.last_name, u.gender
       FROM users u
       LEFT JOIN photos p ON p.user_id = u.id
       WHERE p.id IS NULL
+        AND u.email LIKE '%@example.com'
       ORDER BY u.id
     `);
 

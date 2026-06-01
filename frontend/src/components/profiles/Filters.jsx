@@ -132,7 +132,7 @@ const Filters = ({ filters, onChange, onSearch, isSearch = false }) => {
         )}
       </div>
 
-      {/* Section étendue des filtres */}
+      {/* Expanded filters section */}
       {isOpen && (
         <div className="mt-4 p-4 bg-white dark:bg-gray-900 rounded-lg border dark:border-gray-800 animate-fade-in shadow-sm transition-colors duration-200">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

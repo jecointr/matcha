@@ -5,10 +5,12 @@ import { Heart, Bell, MessageCircle, User, LogOut, Menu, X, Compass, MapPin } fr
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider, useSocket } from './context/SocketContext';
 import { CallProvider } from './context/CallContext';
+import { FeedbackProvider } from './context/FeedbackContext';
 // Route guards
 import { PrivateRoute, GuestRoute, CompleteProfileRoute } from './components/PrivateRoute';
 // Components
 import ThemeToggle from './components/ui/ThemeToggle';
+import VideoCallModal from './components/chat/VideoCallModal';
 // Pages
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -23,6 +25,7 @@ import SearchPage from './pages/SearchPage';
 import UserProfile from './pages/UserProfile';
 import Likes from './pages/Likes';
 import Visitors from './pages/Visitors';
+import Blocked from './pages/Blocked';
 import Chat from './pages/Chat';
 import Notifications from './pages/Notifications';
 import MapPage from './pages/MapPage';
@@ -229,6 +232,8 @@ const Layout = ({ children }) => (
       </div>
     </main>
     <Footer />
+    {/* Modale d'appel globale : un appel entrant s'affiche sur n'importe quelle page */}
+    <VideoCallModal />
   </div>
 );
 
@@ -260,6 +265,7 @@ const AppRoutes = () => {
         <Route path="/profile/:userId" element={<CompleteProfileRoute><UserProfile /></CompleteProfileRoute>} />
         <Route path="/likes" element={<CompleteProfileRoute><Likes /></CompleteProfileRoute>} />
         <Route path="/visitors" element={<CompleteProfileRoute><Visitors /></CompleteProfileRoute>} />
+        <Route path="/blocked" element={<CompleteProfileRoute><Blocked /></CompleteProfileRoute>} />
         <Route path="/chat" element={<CompleteProfileRoute><Chat /></CompleteProfileRoute>} />
         <Route path="/notifications" element={<CompleteProfileRoute><Notifications /></CompleteProfileRoute>} />
         <Route path="/map" element={<CompleteProfileRoute><MapPage /></CompleteProfileRoute>} />
@@ -274,13 +280,15 @@ const AppRoutes = () => {
 // Main App with providers
 function App() {
   return (
-    <AuthProvider>
-      <SocketProvider>
-        <CallProvider>
-          <AppRoutes />
-        </CallProvider>
-      </SocketProvider>
-    </AuthProvider>
+    <FeedbackProvider>
+      <AuthProvider>
+        <SocketProvider>
+          <CallProvider>
+            <AppRoutes />
+          </CallProvider>
+        </SocketProvider>
+      </AuthProvider>
+    </FeedbackProvider>
   );
 }
 

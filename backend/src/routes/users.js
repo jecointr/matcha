@@ -3,15 +3,21 @@ import { query, queryOne, queryAll, transaction } from '../config/database.js';
 import { authenticate } from '../middlewares/auth.js';
 import { upload, processImage, deleteImage, handleUploadError } from '../middlewares/upload.js';
 import { sanitizeString, isValidEmail, isValidName, sanitizeEmail } from '../utils/validators.js';
-import { deleteAccount, blockUser, unblockUser } from '../controllers/users.js';
+import { deleteAccount, blockUser, unblockUser, getBlockedUsers } from '../controllers/users.js';
 import xss from 'xss';
 
 const router = Router();
+
+// Minimum number of interests required for a profile to be considered complete.
+// The subject requires "a list of interests" (>= 1) without a fixed number; we use 3
+// because matching ranks by shared tags (a single tag = too weak a match).
+const MIN_TAGS = 3;
 
 // All routes require authentication
 router.use(authenticate);
 
 router.delete('/me', deleteAccount);
+router.get('/blocked', getBlockedUsers);
 router.post('/:id/block', blockUser);
 router.delete('/:id/block', unblockUser);
 
@@ -385,6 +391,9 @@ router.put('/tags', async (req, res) => {
       }
     });
 
+    // Recompute completeness now that tags changed (tags count toward it, see MIN_TAGS)
+    await updateProfileComplete(req.userId);
+
     // Get updated tags
     const tags = await queryAll(
       `SELECT t.id, t.name FROM tags t
@@ -459,6 +468,7 @@ async function updateProfileComplete(userId) {
   const user = await queryOne(
     `SELECT gender, biography, birth_date,
             (SELECT COUNT(*) FROM photos WHERE user_id = $1) as photo_count,
+            (SELECT COUNT(*) FROM user_tags WHERE user_id = $1) as tag_count,
             (city IS NOT NULL OR latitude IS NOT NULL) as has_location
      FROM users WHERE id = $1`,
     [userId]
@@ -469,6 +479,7 @@ async function updateProfileComplete(userId) {
                      user.biography.trim() !== '' &&
                      user.birth_date !== null &&
                      parseInt(user.photo_count) > 0 &&
+                     parseInt(user.tag_count) >= MIN_TAGS &&
                      user.has_location;
 
   await query(

@@ -36,7 +36,7 @@ const sendEmail = async ({ to, subject, html, text }) => {
  * Send verification email
  */
 export const sendVerificationEmail = async (email, username, token) => {
-  const verifyUrl = `${process.env.API_URL}/api/auth/verify-email?token=${token}`;
+  const verifyUrl = `${process.env.BACKEND_URL || 'http://localhost:3000'}/api/auth/verify-email?token=${token}`;
   
   return sendEmail({
     to: email,
@@ -63,7 +63,7 @@ export const sendVerificationEmail = async (email, username, token) => {
           <h2>Welcome to Matcha, ${username}!</h2>
           <p>Thanks for signing up. Please verify your email address to complete your registration.</p>
           <p style="text-align: center;">
-            <a href="${verifyUrl}" class="button">Verify Email</a>
+            <a href="${verifyUrl}" target="_blank" rel="noopener" class="button">Verify Email</a>
           </p>
           <p>Or copy and paste this link in your browser:</p>
           <p style="word-break: break-all; color: #666;">${verifyUrl}</p>

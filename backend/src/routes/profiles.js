@@ -410,18 +410,18 @@ router.get('/map', async (req, res) => {
   try {
     const userId = req.userId;
 
-    // 1. Récupérer la position de l'utilisateur actuel pour calculer les distances
+    // 1. Get the current user's location to compute distances
     const currentUser = await queryOne(
       'SELECT latitude, longitude FROM users WHERE id = $1',
       [userId]
     );
 
-    // Fallback à 0,0 si l'utilisateur n'a pas de loc (ne devrait pas arriver si profil complet)
+    // Fallback to 0,0 if the user has no location (shouldn't happen if the profile is complete)
     const userLat = currentUser?.latitude || 0;
     const userLon = currentUser?.longitude || 0;
 
-    // 2. Récupérer les utilisateurs géolocalisés
-    // On utilise l'opérateur <@> de earthdistance pour la distance en miles (converti implicitement)
+    // 2. Get geolocated users
+    // Use earthdistance's <@> operator for the distance in miles (implicitly converted)
     // Note: point(longitude, latitude) est l'ordre standard pour PostgreSQL earthdistance
     const users = await queryAll(`
       SELECT 
@@ -515,21 +515,33 @@ router.get('/:userId', async (req, res) => {
 
     // Record visit (if not own profile)
     if (parseInt(userId) !== currentUserId) {
-      await query(
-        `INSERT INTO profile_visits (visitor_id, visited_id) VALUES ($1, $2)`,
+      // De-dup: ignore repeated views within a short window (React StrictMode
+      // double-fetch, page refresh, etc.) so we don't record two visits or send
+      // the "viewed your profile" notification twice.
+      const recentVisit = await queryOne(
+        `SELECT 1 FROM profile_visits
+         WHERE visitor_id = $1 AND visited_id = $2
+         AND visited_at > NOW() - INTERVAL '1 minute'`,
         [currentUserId, userId]
       );
 
-      // Send notification
-      const io = req.app.get('io');
-      sendNotification(io, parseInt(userId), 'profile_view', {
-        fromUserId: currentUserId,
-        fromUsername: req.user.username,
-        message: `${req.user.first_name} viewed your profile`
-      });
+      if (!recentVisit) {
+        await query(
+          `INSERT INTO profile_visits (visitor_id, visited_id) VALUES ($1, $2)`,
+          [currentUserId, userId]
+        );
 
-      // Update fame rating (small boost for being viewed)
-      await updateFameRating(parseInt(userId));
+        // Send notification
+        const io = req.app.get('io');
+        sendNotification(io, parseInt(userId), 'profile_view', {
+          fromUserId: currentUserId,
+          fromUsername: req.user.username,
+          message: `${req.user.first_name} viewed your profile`
+        });
+
+        // Update fame rating (small boost for being viewed)
+        await updateFameRating(parseInt(userId));
+      }
     }
 
     res.json({
@@ -678,10 +690,10 @@ router.delete('/:userId/like', async (req, res) => {
       return res.status(404).json({ error: 'Like not found' });
     }
 
-    // Notify the other user
+    // Notify the other user — the unlike is ANONYMOUS: we don't pass fromUserId,
+    // so no sender info is stored, shown (avatar/name) or clickable.
     const io = req.app.get('io');
     sendNotification(io, parseInt(userId), 'unlike', {
-      fromUserId: currentUserId,
       message: 'Someone unliked your profile'
     });
 

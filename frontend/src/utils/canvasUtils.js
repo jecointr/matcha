@@ -14,7 +14,7 @@ export function getRadianAngle(degreeValue) {
 }
 
 /**
- * Retourne la nouvelle image croppée/filtrée sous forme de Blob
+ * Returns the cropped/filtered image as a Blob
  */
 export default async function getCroppedImg(imageSrc, pixelCrop, rotation = 0, filter = '') {
   const image = await createImage(imageSrc);
@@ -24,45 +24,45 @@ export default async function getCroppedImg(imageSrc, pixelCrop, rotation = 0, f
   const maxSize = Math.max(image.width, image.height);
   const safeArea = 2 * ((maxSize / 2) * Math.sqrt(2));
 
-  // Définir la taille du canvas pour inclure l'image tournée
+  // Size the canvas to fit the rotated image
   canvas.width = safeArea;
   canvas.height = safeArea;
 
-  // Appliquer les filtres (ex: "grayscale(100%)")
+  // Apply filters (e.g. "grayscale(100%)")
   if (filter) {
     ctx.filter = filter;
   }
 
-  // Translation au centre pour la rotation
+  // Translate to center for rotation
   ctx.translate(safeArea / 2, safeArea / 2);
   ctx.rotate(getRadianAngle(rotation));
   ctx.translate(-safeArea / 2, -safeArea / 2);
 
-  // Dessiner l'image centrée
+  // Draw the centered image
   ctx.drawImage(
     image,
     safeArea / 2 - image.width * 0.5,
     safeArea / 2 - image.height * 0.5
   );
 
-  // Extraire la zone croppée
+  // Extract the cropped area
   const data = ctx.getImageData(0, 0, safeArea, safeArea);
 
-  // Redimensionner le canvas à la taille finale du crop
+  // Resize the canvas to the final crop size
   canvas.width = pixelCrop.width;
   canvas.height = pixelCrop.height;
 
-  // Remettre le contexte propre pour dessiner le résultat final
+  // Reset the context to draw the final result
   ctx.putImageData(
     data,
     Math.round(0 - safeArea / 2 + image.width * 0.5 - pixelCrop.x),
     Math.round(0 - safeArea / 2 + image.height * 0.5 - pixelCrop.y)
   );
 
-  // Retourner un Blob (fichier)
+  // Return a Blob (file)
   return new Promise((resolve) => {
     canvas.toBlob((blob) => {
       resolve(blob);
-    }, 'image/jpeg', 0.9); // Qualité 90%
+    }, 'image/jpeg', 0.9); // 90% quality
   });
 }

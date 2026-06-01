@@ -1,15 +1,15 @@
 @import "tailwindcss";
 
-/* === Activation du Dark Mode (Manuel via classe) === */
+/* === Dark mode (manual, via class) === */
 @custom-variant dark (&:is(.dark *));
 
-/* === Configuration du Thème === */
+/* === Theme configuration === */
 @theme {
-  /* Polices */
+  /* Fonts */
   --font-sans: "Open Sans", sans-serif;
   --font-heading: "Montserrat", sans-serif;
 
-  /* Couleurs Primary */
+  /* Primary colors */
   --color-primary-50: #fdf2f8;
   --color-primary-100: #fce7f3;
   --color-primary-200: #fbcfe8;
@@ -21,7 +21,7 @@
   --color-primary-800: #9d174d;
   --color-primary-900: #831843;
 
-  /* Animation custom */
+  /* Custom animation */
   --animate-fade-in: fadeIn 0.3s ease-in-out;
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
@@ -29,23 +29,20 @@
   }
 }
 
-/* === Styles de Base === */
+/* === Base styles === */
 @layer base {
   body {
-    /* MODIF: Ajout du fond et texte sombre, et d'une transition douce */
     @apply bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100 antialiased font-sans transition-colors duration-200;
   }
   h1, h2, h3, h4, h5, h6 {
-    /* MODIF: Les titres deviennent blancs en dark mode */
     @apply font-heading font-bold text-gray-900 dark:text-white transition-colors duration-200;
   }
   * {
-    /* MODIF: Les bordures par défaut s'assombrissent */
     @apply border-gray-200 dark:border-gray-800 transition-colors duration-200;
   }
 }
 
-/* === Composants === */
+/* === Components === */
 @layer components {
   .btn, 
   .btn-primary, 
@@ -59,32 +56,27 @@
   }
   
   .btn-secondary {
-    /* MODIF: Le bouton secondaire passe au gris foncé en mode sombre */
     @apply bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700 focus:ring-gray-500;
   }
-  
+
   .btn-outline {
-    /* MODIF: Au survol, le bouton outline a un fond semi-transparent adapté au dark mode */
     @apply border-2 border-primary-500 text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/30 focus:ring-primary-500;
   }
-  
+
   .input {
-    /* MODIF: Les champs de texte passent au fond sombre avec texte clair */
     @apply w-full px-4 py-2 border bg-white text-gray-900 dark:bg-gray-900 dark:text-white dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200;
   }
-  
+
   .card {
-    /* MODIF: Les cartes passent au gris très foncé */
     @apply bg-white dark:bg-gray-900 rounded-xl shadow-sm border p-6 transition-colors duration-200;
   }
-  
-  .badge, 
+
+  .badge,
   .badge-primary {
     @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors duration-200;
   }
-  
+
   .badge-primary {
-    /* MODIF: Les badges réduisent leur opacité de fond pour rester lisibles */
     @apply bg-primary-100 text-primary-800 dark:bg-primary-900/40 dark:text-primary-300;
   }
 }

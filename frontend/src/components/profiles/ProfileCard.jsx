@@ -93,7 +93,6 @@ const ProfileCard = ({ profile, onLike, onUnlike, compact = false }) => {
           )}
         </div>
 
-        {/* ZONE RÉSERVÉE */}
         <div className="h-6 mb-3 flex items-center">
           {profile.commonTags > 0 && (
             <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1 animate-fade-in transition-colors">
