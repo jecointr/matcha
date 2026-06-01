@@ -62,11 +62,18 @@ router.get('/conversations', async (req, res) => {
           ORDER BY created_at DESC LIMIT 1
         ) as last_message_sender,
         (
-          SELECT COUNT(*) FROM messages 
-          WHERE conversation_id = c.id 
-          AND sender_id != $1 
+          SELECT COUNT(*) FROM messages
+          WHERE conversation_id = c.id
+          AND sender_id != $1
           AND is_read = false
-        )::int as unread_count
+        )::int as unread_count,
+        -- Still mutually liked? If not (unmatch), the conversation is shown
+        -- read-only ("Connection ended") instead of being hidden.
+        EXISTS (
+          SELECT 1 FROM likes l1
+          JOIN likes l2 ON l1.liked_id = l2.liker_id AND l1.liker_id = l2.liked_id
+          WHERE l1.liker_id = $1 AND l1.liked_id = u.id
+        ) as is_matched
       FROM conversations c
       JOIN users u ON u.id = CASE 
         WHEN c.user1_id = $1 THEN c.user2_id 
@@ -78,11 +85,15 @@ router.get('/conversations', async (req, res) => {
         WHERE (b.blocker_id = $1 AND b.blocked_id = u.id)
            OR (b.blocker_id = u.id AND b.blocked_id = $1)
       )
-      -- Not matched anymore (unmatch) → hide the conversation from the list
-      AND EXISTS (
-        SELECT 1 FROM likes l1
-        JOIN likes l2 ON l1.liked_id = l2.liker_id AND l1.liker_id = l2.liked_id
-        WHERE l1.liker_id = $1 AND l1.liked_id = u.id
+      -- Show the conversation if still matched, OR if it has history worth
+      -- keeping read-only after an unmatch (empty unmatched convs stay hidden).
+      AND (
+        EXISTS (
+          SELECT 1 FROM likes l1
+          JOIN likes l2 ON l1.liked_id = l2.liker_id AND l1.liker_id = l2.liked_id
+          WHERE l1.liker_id = $1 AND l1.liked_id = u.id
+        )
+        OR EXISTS (SELECT 1 FROM messages WHERE conversation_id = c.id)
       )
       ORDER BY COALESCE(
         (SELECT created_at FROM messages WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1),
@@ -105,7 +116,9 @@ router.get('/conversations', async (req, res) => {
         lastMessage: c.last_message,
         lastMessageAt: c.last_message_at,
         lastMessageSender: c.last_message_sender,
-        unreadCount: c.unread_count,
+        // No unread badge on an ended (unmatched) conversation.
+        unreadCount: c.is_matched ? c.unread_count : 0,
+        available: c.is_matched,
         createdAt: c.created_at
       }))
     });
@@ -211,10 +224,10 @@ router.get('/:conversationId/messages', async (req, res) => {
       return res.status(404).json({ error: 'Conversation not found' });
     }
 
-    // Not matched anymore (unmatch) → chat access cut off (per subject)
-    if (!(await areMatched(userId, conversation.other_user_id))) {
-      return res.status(403).json({ error: 'You can only chat with matched users' });
-    }
+    // After an unmatch the conversation becomes read-only: the history stays
+    // readable, but sending is blocked (POST returns 403). We surface the match
+    // state as `available` so the client can lock the composer accordingly.
+    const matched = await areMatched(userId, conversation.other_user_id);
 
     // Build query
     let params = [conversationId, parseInt(limit)];
@@ -275,7 +288,8 @@ router.get('/:conversationId/messages', async (req, res) => {
         replySenderId: m.reply_sender_id,
         replySenderName: m.reply_sender_name 
       })),
-      hasMore: messages.length === parseInt(limit)
+      hasMore: messages.length === parseInt(limit),
+      available: matched
     });
 
   } catch (error) {
@@ -456,6 +470,15 @@ router.get('/unread-count', async (req, res) => {
       WHERE (c.user1_id = $1 OR c.user2_id = $1)
       AND m.sender_id != $1
       AND m.is_read = false
+      -- Don't count unread from ended (unmatched) conversations, to match the
+      -- sidebar which shows no unread badge on them. A block deletes the likes,
+      -- so this also excludes blocked pairs.
+      AND EXISTS (
+        SELECT 1 FROM likes l1
+        JOIN likes l2 ON l1.liked_id = l2.liker_id AND l1.liker_id = l2.liked_id
+        WHERE l1.liker_id = $1
+          AND l1.liked_id = CASE WHEN c.user1_id = $1 THEN c.user2_id ELSE c.user1_id END
+      )
     `, [userId]);
 
     res.json({ count: result.count });

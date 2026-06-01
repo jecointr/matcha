@@ -149,7 +149,18 @@ export const sendNotification = async (io, userId, type, data) => {
   try {
     // 1. Save to DB
     const fromUserId = data.fromUserId || null;
-    
+
+    // Respect notification mutes: if the recipient previously "unliked" the
+    // sender, they no longer receive notifications from them (subject IV.5).
+    // The mute is cleared when the recipient likes the sender again.
+    if (fromUserId) {
+      const muted = await queryOne(
+        'SELECT 1 FROM notification_mutes WHERE muter_id = $1 AND muted_id = $2',
+        [userId, fromUserId]
+      );
+      if (muted) return;
+    }
+
     const insertQuery = `
       INSERT INTO notifications (user_id, type, from_user_id, data)
       VALUES ($1, $2, $3, $4)

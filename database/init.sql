@@ -109,6 +109,18 @@ CREATE TABLE IF NOT EXISTS blocks (
     UNIQUE(blocker_id, blocked_id)
 );
 
+-- Notification mutes table
+-- muter_id no longer receives notifications triggered by muted_id.
+-- Set when muter "unlikes" muted (subject IV.5: removing a like prevents
+-- further notifications from that user); cleared when muter likes them again.
+CREATE TABLE IF NOT EXISTS notification_mutes (
+    id SERIAL PRIMARY KEY,
+    muter_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    muted_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(muter_id, muted_id)
+);
+
 -- Reports table
 CREATE TABLE IF NOT EXISTS reports (
     id SERIAL PRIMARY KEY,
@@ -183,6 +195,7 @@ CREATE INDEX IF NOT EXISTS idx_visits_time ON profile_visits(visited_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_blocks_blocker ON blocks(blocker_id);
 CREATE INDEX IF NOT EXISTS idx_blocks_blocked ON blocks(blocked_id);
+CREATE INDEX IF NOT EXISTS idx_notif_mutes_pair ON notification_mutes(muter_id, muted_id);
 
 CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_messages_unread ON messages(conversation_id, is_read) WHERE is_read = FALSE;

@@ -630,6 +630,13 @@ router.post('/:userId/like', async (req, res) => {
       [currentUserId, userId]
     );
 
+    // Liking (or re-liking) someone clears any prior mute on them: we want
+    // their notifications again (mirrors the unlike that set the mute).
+    await query(
+      'DELETE FROM notification_mutes WHERE muter_id = $1 AND muted_id = $2',
+      [currentUserId, userId]
+    );
+
     // Check for mutual like (match)
     const mutualLike = await queryOne(
       'SELECT 1 FROM likes WHERE liker_id = $1 AND liked_id = $2',
@@ -703,12 +710,33 @@ router.delete('/:userId/like', async (req, res) => {
       return res.status(404).json({ error: 'Like not found' });
     }
 
+    // Mute notifications from the unliked user (subject IV.5: removing a like
+    // prevents further notifications from that user). Cleared if we like again.
+    await query(
+      `INSERT INTO notification_mutes (muter_id, muted_id) VALUES ($1, $2)
+       ON CONFLICT (muter_id, muted_id) DO NOTHING`,
+      [currentUserId, userId]
+    );
+
     // Notify the other user — the unlike is ANONYMOUS: we don't pass fromUserId,
     // so no sender info is stored, shown (avatar/name) or clickable.
     const io = req.app.get('io');
     sendNotification(io, parseInt(userId), 'unlike', {
       message: 'Someone unliked your profile'
     });
+
+    // If a match was just broken, tell BOTH parties live so the chat becomes
+    // read-only ("Connection ended") without a page reload. A match existed iff
+    // the other user still likes us (our like was just removed above). Each side
+    // is told which other user the unmatch is with (from their own perspective).
+    const wasMatched = await queryOne(
+      'SELECT 1 FROM likes WHERE liker_id = $1 AND liked_id = $2',
+      [userId, currentUserId]
+    );
+    if (wasMatched) {
+      io.to(`user:${userId}`).emit('chat:unmatched', { otherUserId: currentUserId });
+      io.to(`user:${currentUserId}`).emit('chat:unmatched', { otherUserId: parseInt(userId) });
+    }
 
     // Update fame rating
     await updateFameRating(parseInt(userId));

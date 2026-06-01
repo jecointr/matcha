@@ -23,6 +23,7 @@ export const useSocket = () => {
       stopTyping: () => {},
       onChatMessage: () => () => {},
       onTyping: () => () => {},
+      onUnmatch: () => () => {},
       clearUnreadMessages: () => {},
       clearUnreadNotifications: () => {},
       clearNotification: () => {},
@@ -264,6 +265,14 @@ export const SocketProvider = ({ children }) => {
       if (socket) {
         socket.on('chat:reaction', callback);
         return () => socket.off('chat:reaction', callback);
+      }
+      return () => {};
+    }, [socket]),
+    // Live unmatch: the chat with the given user just became read-only.
+    onUnmatch: useCallback((callback) => {
+      if (socket) {
+        socket.on('chat:unmatched', callback);
+        return () => socket.off('chat:unmatched', callback);
       }
       return () => {};
     }, [socket]),

@@ -4,9 +4,10 @@ import { chatAPI, eventAPI, profileAPI } from '../services/api';
 import { useSocket } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
 import { 
-  Send, Loader, MessageCircle, Circle, ArrowLeft, 
+  Send, Loader, MessageCircle, Circle, ArrowLeft,
   ChevronLeft, User, Check, CheckCheck, Calendar,
-  MapPin, Clock, Video, Phone, Ban, Smile, Reply, X
+  MapPin, Clock, Video, Phone, Ban, Smile, Reply, X,
+  HeartOff, Lock
 } from 'lucide-react';
 import EventModal from '../components/chat/EventModal';
 import { useCall } from '../context/CallContext';
@@ -27,10 +28,11 @@ const Chat = () => {
     startTyping, 
     stopTyping, 
     onTyping, 
-    clearUnreadMessages, 
+    clearUnreadMessages,
     sendReadSignal,
-    onReaction
-  } = useSocket();  
+    onReaction,
+    onUnmatch
+  } = useSocket();
   
   const { callUser } = useCall();
   const toast = useToast();
@@ -208,6 +210,24 @@ const Chat = () => {
   useEffect(() => {
     loadConversations();
   }, []);
+
+  // Live unmatch: when the other user unlikes (or we unlike them), flip the
+  // conversation to read-only ("Connection ended") without a page reload.
+  useEffect(() => {
+    const unsubscribe = onUnmatch(({ otherUserId }) => {
+      setConversations(prev => prev.map(c =>
+        c.otherUser.id === otherUserId
+          ? { ...c, available: false, unreadCount: 0 }
+          : c
+      ));
+      setActiveConversation(prev =>
+        prev && prev.otherUser.id === otherUserId
+          ? { ...prev, available: false }
+          : prev
+      );
+    });
+    return unsubscribe;
+  }, [onUnmatch]);
 
   useEffect(() => {
     const conversationId = searchParams.get('id');
@@ -506,6 +526,10 @@ const Chat = () => {
     );
   }
 
+  // After an unmatch the conversation is read-only ("Connection ended"):
+  // history is visible, but the composer/calls/reactions are locked.
+  const isEnded = activeConversation && activeConversation.available === false;
+
   return (
     <div className="flex h-[calc(100vh-12rem)] bg-white dark:bg-gray-900 rounded-lg border dark:border-gray-800 overflow-hidden transition-colors duration-200">
       
@@ -523,7 +547,9 @@ const Chat = () => {
               <p className="text-sm">Match with someone to start chatting</p>
             </div>
           ) : (
-            conversations.map(conv => (
+            conversations.map(conv => {
+              const ended = conv.available === false;
+              return (
               <button
                 key={conv.id}
                 onClick={() => selectConversation(conv)}
@@ -536,39 +562,47 @@ const Chat = () => {
                     <img
                       src={getPhotoUrl(conv.otherUser.profilePicture)}
                       alt={conv.otherUser.firstName}
-                      className="w-12 h-12 rounded-full object-cover"
+                      className={`w-12 h-12 rounded-full object-cover ${ended ? 'grayscale opacity-60' : ''}`}
                     />
                   ) : (
-                    <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center transition-colors duration-200">
+                    <div className={`w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center transition-colors duration-200 ${ended ? 'opacity-60' : ''}`}>
                       <User className="w-6 h-6 text-gray-400 dark:text-gray-500" />
                     </div>
                   )}
-                  {conv.otherUser.isOnline && (
+                  {!ended && conv.otherUser.isOnline && (
                     <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full transition-colors duration-200" />
                   )}
                 </div>
-                
+
                 <div className="flex-1 min-w-0 text-left">
                   <div className="flex justify-between items-center">
-                    <span className="font-medium truncate dark:text-gray-100">{conv.otherUser.firstName}</span>
-                    {conv.lastMessageAt && (
+                    <span className={`font-medium truncate flex items-center gap-1.5 ${ended ? 'text-gray-400 dark:text-gray-500' : 'dark:text-gray-100'}`}>
+                      {conv.otherUser.firstName}
+                      {ended && <HeartOff className="w-3.5 h-3.5 shrink-0" />}
+                    </span>
+                    {!ended && conv.lastMessageAt && (
                       <span className="text-xs text-gray-400 dark:text-gray-500">
                         {formatTime(conv.lastMessageAt)}
                       </span>
                     )}
                   </div>
-                  <p className={`text-sm truncate transition-colors duration-200 ${conv.unreadCount > 0 ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>
-                    {conv.lastMessage || 'Start a conversation'}
-                  </p>
+                  {ended ? (
+                    <p className="text-sm truncate italic text-gray-400 dark:text-gray-500">Connection ended</p>
+                  ) : (
+                    <p className={`text-sm truncate transition-colors duration-200 ${conv.unreadCount > 0 ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>
+                      {conv.lastMessage || 'Start a conversation'}
+                    </p>
+                  )}
                 </div>
-                
-                {conv.unreadCount > 0 && (
+
+                {!ended && conv.unreadCount > 0 && (
                   <span className="bg-primary-500 text-white text-xs font-bold px-2 py-1 rounded-full min-w-5 text-center">
                     {conv.unreadCount}
                   </span>
                 )}
               </button>
-            ))
+              );
+            })
           )}
         </div>
       </div>
@@ -603,19 +637,28 @@ const Chat = () => {
                 )}
                 <div>
                   <h3 className="font-medium dark:text-gray-100">{activeConversation.otherUser.firstName}</h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                    {activeConversation.otherUser.isOnline ? (
-                      <>
-                        <Circle className="w-2 h-2 fill-green-500 text-green-500" />
-                        Online
-                      </>
-                    ) : (
-                      'Offline'
-                    )}
-                  </p>
+                  {isEnded ? (
+                    <p className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1 italic">
+                      <HeartOff className="w-3 h-3" /> Connection ended
+                    </p>
+                  ) : (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                      {activeConversation.otherUser.isOnline ? (
+                        <>
+                          <Circle className="w-2 h-2 fill-green-500 text-green-500" />
+                          Online
+                        </>
+                      ) : (
+                        'Offline'
+                      )}
+                    </p>
+                  )}
                 </div>
               </Link>
-              
+
+              {/* Calls are unavailable on an ended (unmatched) conversation */}
+              {!isEnded && (
+              <>
               <button
                 onClick={() => callUser(activeConversation.otherUser.id, false, {
                   id: activeConversation.otherUser.id,
@@ -638,7 +681,9 @@ const Chat = () => {
               >
                 <Video className="w-6 h-6" />
               </button>
-              
+              </>
+              )}
+
               <button 
                 onClick={handleBlockUser}
                 className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-all duration-200"
@@ -736,6 +781,9 @@ const Chat = () => {
                       {/* Inner Container : items-center assure le centrage vertical du bouton emoji */}
                       <div className={`flex items-center gap-2 max-w-[85%] md:max-w-[75%] ${msg.isOwn ? 'flex-row' : 'flex-row-reverse'}`}>
                         
+                        {/* Reply / react actions — hidden on an ended (read-only) conversation */}
+                        {!isEnded && (
+                        <>
                         {/* BOUTON DE REPONSE */}
                         <div className={`relative shrink-0 transition-all duration-200 ${
                             replyingTo?.id === msg.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
@@ -781,6 +829,9 @@ const Chat = () => {
                                 </div>
                             )}
                         </div>
+
+                        </>
+                        )}
 
                         {/* 2. BULLE DE MESSAGE */}
                         <div className="relative min-w-0 flex flex-col"> 
@@ -878,7 +929,21 @@ const Chat = () => {
               </div>
             )}
             
-            {/* Message input */}
+            {/* Message input — locked when the conversation has ended (unmatch) */}
+            {isEnded ? (
+              <div className="p-4 border-t dark:border-gray-800 bg-gray-50 dark:bg-gray-900/40 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm text-gray-500 dark:text-gray-400 transition-colors duration-200">
+                <span className="flex items-center gap-2">
+                  <Lock className="w-4 h-4 shrink-0" />
+                  You're no longer connected. Messaging is unavailable.
+                </span>
+                <Link
+                  to={`/profile/${activeConversation.otherUser.id}`}
+                  className="text-primary-600 dark:text-primary-400 font-medium hover:underline shrink-0"
+                >
+                  View profile
+                </Link>
+              </div>
+            ) : (
             <form onSubmit={handleSend} className="p-4 border-t dark:border-gray-800 flex gap-2 items-center transition-colors duration-200">
               <button
                 type="button"
@@ -909,6 +974,7 @@ const Chat = () => {
                 )}
               </button>
             </form>
+            )}
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400 transition-colors duration-200">
