@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import xss from 'xss';
 import { queryOne, queryAll, query } from '../config/database.js';
 import { authenticate, requireVerified } from '../middlewares/auth.js';
 import { validateEvent } from '../utils/validators.js';
@@ -50,12 +51,15 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // 3. Create Event
+    // 3. Create Event — sanitize free-text fields (defense in depth)
+    const cleanLocation = xss(String(location).trim()).slice(0, 255);
+    const cleanDescription = description ? xss(String(description).trim()).slice(0, 500) : null;
+
     const event = await queryOne(`
       INSERT INTO events (creator_id, target_id, event_date, location, description)
       VALUES ($1, $2, $3, $4, $5)
       RETURNING *
-    `, [creatorId, targetId, date, location, description]);
+    `, [creatorId, targetId, date, cleanLocation, cleanDescription]);
 
     // No dedicated "event_*" notification. The proposal is carried by a chat message
     // (sent from the frontend) → the recipient is notified like for any message, and

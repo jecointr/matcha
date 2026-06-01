@@ -11,8 +11,10 @@ export const handleOAuthUser = async (provider, profile) => {
     throw new Error('No email found from provider');
   }
 
-  const safeFirstName = firstName || 'User';
-  const safeLastName = lastName || ' '; 
+  // Provider-supplied names bypass our normal validators, so strip any HTML.
+  const stripTags = (s, max = 100) => String(s || '').replace(/[<>]/g, '').trim().slice(0, max);
+  const safeFirstName = stripTags(firstName) || 'User';
+  const safeLastName = stripTags(lastName) || ' ';
 
   let user = await queryOne(
     'SELECT * FROM users WHERE auth_provider = $1 AND auth_id = $2',
@@ -31,9 +33,13 @@ export const handleOAuthUser = async (provider, profile) => {
     return user;
   }
 
-  let finalUsername = username || email.split('@')[0];
-  finalUsername = finalUsername.substring(0, 40);
-  
+  // Restrict to the same safe charset as a normal signup username (letters,
+  // digits, _ and -), so a malicious provider display name can't carry markup.
+  let finalUsername = (username || email.split('@')[0] || 'user')
+    .replace(/[^a-zA-Z0-9_-]/g, '')
+    .substring(0, 40);
+  if (finalUsername.length < 3) finalUsername = 'user';
+
   const uniqueSuffix = Math.floor(Math.random() * 10000);
   finalUsername = `${finalUsername}_${uniqueSuffix}`;
 

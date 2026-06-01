@@ -1,5 +1,13 @@
 import nodemailer from 'nodemailer';
 
+// Escape user-provided values before interpolating them into email HTML.
+// Defense in depth: usernames are already restricted at signup, but OAuth-derived
+// names are looser, and emails are the one place we render raw HTML.
+const escapeHtml = (str) =>
+  String(str ?? '').replace(/[&<>"'`]/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' }[c]
+  ));
+
 // Create transporter
 const transporter = nodemailer.createTransport({
   host: process.env.MAIL_HOST || 'maildev',
@@ -60,7 +68,7 @@ export const sendVerificationEmail = async (email, username, token) => {
           <div class="header">
             <div class="logo">💕 Matcha</div>
           </div>
-          <h2>Welcome to Matcha, ${username}!</h2>
+          <h2>Welcome to Matcha, ${escapeHtml(username)}!</h2>
           <p>Thanks for signing up. Please verify your email address to complete your registration.</p>
           <p style="text-align: center;">
             <a href="${verifyUrl}" target="_blank" rel="noopener" class="button">Verify Email</a>
@@ -108,7 +116,7 @@ export const sendPasswordResetEmail = async (email, username, token) => {
             <div class="logo">💕 Matcha</div>
           </div>
           <h2>Password Reset Request</h2>
-          <p>Hi ${username},</p>
+          <p>Hi ${escapeHtml(username)},</p>
           <p>You requested to reset your password. Click the button below to set a new password:</p>
           <p style="text-align: center;">
             <a href="${resetUrl}" class="button">Reset Password</a>
