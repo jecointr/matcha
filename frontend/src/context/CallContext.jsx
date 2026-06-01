@@ -3,6 +3,7 @@ import Peer from 'simple-peer';
 import { useSocket } from './SocketContext';
 import { useAuth } from './AuthContext';
 import { useToast } from './FeedbackContext';
+import { playEndTone } from '../utils/callSounds';
 
 const CallContext = createContext();
 
@@ -20,6 +21,7 @@ export const CallProvider = ({ children }) => {
   const [callAccepted, setCallAccepted] = useState(false);
   const [callEnded, setCallEnded] = useState(false);
   const [stream, setStream] = useState(null);
+  const [remoteStream, setRemoteStream] = useState(null); // the other party's audio/video
   const [isCalling, setIsCalling] = useState(false);
   const [callType, setCallType] = useState('video'); // 'video' | 'audio'
   const [otherUser, setOtherUser] = useState(null); // { id, name, picture } of the other party
@@ -81,7 +83,8 @@ export const CallProvider = ({ children }) => {
           });
           setStream(currentStream);
           streamRef.current = currentStream;
-          if (myVideo.current) myVideo.current.srcObject = currentStream;
+          // Binding to the <video> element is done in VideoCallModal via an effect:
+          // the element is mounted conditionally, so it may not exist yet here.
           return currentStream;
       } catch (err) {
           console.error("Media Error:", err);
@@ -120,8 +123,8 @@ export const CallProvider = ({ children }) => {
       });
     });
 
-    peer.on("stream", (remoteStream) => {
-      if (userVideo.current) userVideo.current.srcObject = remoteStream;
+    peer.on("stream", (incomingStream) => {
+      setRemoteStream(incomingStream);
     });
 
     peer.on("error", () => {
@@ -155,8 +158,8 @@ export const CallProvider = ({ children }) => {
       socket.emit("call:answer", { signal: data, to: call.from.id });
     });
 
-    peer.on("stream", (remoteStream) => {
-      if (userVideo.current) userVideo.current.srcObject = remoteStream;
+    peer.on("stream", (incomingStream) => {
+      setRemoteStream(incomingStream);
     });
 
     peer.on("error", () => {
@@ -171,6 +174,13 @@ export const CallProvider = ({ children }) => {
 
   const leaveCall = (emitEvent = true) => {
     setCallEnded(true);
+
+    // Soften the cut-off: a short end tone when a *connected* call hangs up.
+    // (Non-connected cases already get a "No answer"/"Missed call" toast.)
+    if (callAcceptedRef.current) {
+      playEndTone();
+      toast.info("Call ended.");
+    }
 
     if (ringTimeoutRef.current) {
       clearTimeout(ringTimeoutRef.current);
@@ -196,6 +206,7 @@ export const CallProvider = ({ children }) => {
 
     setCall(null);
     setStream(null);
+    setRemoteStream(null);
     setIsCalling(false);
     setCallAccepted(false);
     setCallEnded(false);
@@ -212,6 +223,7 @@ export const CallProvider = ({ children }) => {
       myVideo,
       userVideo,
       stream,
+      remoteStream,
       callUser,
       answerCall,
       leaveCall,
