@@ -515,32 +515,45 @@ router.get('/:userId', async (req, res) => {
 
     // Record visit (if not own profile)
     if (parseInt(userId) !== currentUserId) {
-      // De-dup: ignore repeated views within a short window (React StrictMode
-      // double-fetch, page refresh, etc.) so we don't record two visits or send
-      // the "viewed your profile" notification twice.
-      const recentVisit = await queryOne(
-        `SELECT 1 FROM profile_visits
-         WHERE visitor_id = $1 AND visited_id = $2
-         AND visited_at > NOW() - INTERVAL '1 minute'`,
-        [currentUserId, userId]
-      );
+      const visitedId = parseInt(userId);
 
-      if (!recentVisit) {
-        await query(
-          `INSERT INTO profile_visits (visitor_id, visited_id) VALUES ($1, $2)`,
-          [currentUserId, userId]
+      // De-dup: ignore repeated views within a short window so we don't record
+      // two visits or send the "viewed your profile" notification twice.
+      // The check-then-insert is wrapped in a transaction guarded by a
+      // transaction-level advisory lock on the (visitor, visited) pair: this
+      // serializes concurrent requests for the same pair, closing the TOCTOU
+      // race that otherwise lets two parallel requests (React StrictMode
+      // double-fetch, double-click, multiple tabs...) both pass the check and
+      // insert twice. The lock auto-releases at COMMIT/ROLLBACK.
+      const isNewVisit = await transaction(async (client) => {
+        await client.query('SELECT pg_advisory_xact_lock($1, $2)', [currentUserId, visitedId]);
+
+        const recent = await client.query(
+          `SELECT 1 FROM profile_visits
+           WHERE visitor_id = $1 AND visited_id = $2
+           AND visited_at > NOW() - INTERVAL '1 minute'`,
+          [currentUserId, visitedId]
         );
+        if (recent.rowCount > 0) return false;
 
+        await client.query(
+          `INSERT INTO profile_visits (visitor_id, visited_id) VALUES ($1, $2)`,
+          [currentUserId, visitedId]
+        );
+        return true;
+      });
+
+      if (isNewVisit) {
         // Send notification
         const io = req.app.get('io');
-        sendNotification(io, parseInt(userId), 'profile_view', {
+        sendNotification(io, visitedId, 'profile_view', {
           fromUserId: currentUserId,
           fromUsername: req.user.username,
           message: `${req.user.first_name} viewed your profile`
         });
 
         // Update fame rating (small boost for being viewed)
-        await updateFameRating(parseInt(userId));
+        await updateFameRating(visitedId);
       }
     }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { profileAPI } from '../services/api';
 import { useToast, useConfirm } from '../context/FeedbackContext';
@@ -25,7 +25,14 @@ const UserProfile = () => {
   const [reportReason, setReportReason] = useState('');
   const [matchAlert, setMatchAlert] = useState(false);
 
+  // Belt-and-braces against React StrictMode's dev double-invoke, which would
+  // otherwise fire the visit-recording fetch twice. The ref persists across the
+  // double mount, so we fetch once per actual userId change. (The backend also
+  // de-dups atomically, this just avoids the redundant request.)
+  const lastFetchedId = useRef(null);
   useEffect(() => {
+    if (lastFetchedId.current === userId) return;
+    lastFetchedId.current = userId;
     loadProfile();
   }, [userId]);
 
