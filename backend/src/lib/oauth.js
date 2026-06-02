@@ -35,24 +35,32 @@ export const handleOAuthUser = async (provider, profile) => {
 
   // Restrict to the same safe charset as a normal signup username (letters,
   // digits, _ and -), so a malicious provider display name can't carry markup.
-  let finalUsername = (username || email.split('@')[0] || 'user')
+  let base = (username || email.split('@')[0] || 'user')
     .replace(/[^a-zA-Z0-9_-]/g, '')
     .substring(0, 40);
-  if (finalUsername.length < 3) finalUsername = 'user';
+  if (base.length < 3) base = 'user';
 
-  const uniqueSuffix = Math.floor(Math.random() * 10000);
-  finalUsername = `${finalUsername}_${uniqueSuffix}`;
+  // `username` is UNIQUE. Insert with a random suffix and, on a unique-violation
+  // (Postgres 23505), retry with a fresh suffix. Letting the DB constraint be the
+  // source of truth closes the check-then-insert race entirely.
+  for (let i = 0; i < 10; i++) {
+    const finalUsername = `${base}_${Math.floor(Math.random() * 100000)}`;
+    try {
+      return await queryOne(
+        `INSERT INTO users (
+          email, username, first_name, last_name,
+          auth_provider, auth_id, is_verified, is_profile_complete
+        ) VALUES ($1, $2, $3, $4, $5, $6, true, false)
+        RETURNING *`,
+        [email, finalUsername, safeFirstName, safeLastName, provider, providerId]
+      );
+    } catch (e) {
+      if (e.code === '23505') continue; // username clash → new suffix, retry
+      throw e;
+    }
+  }
 
-  const newUser = await queryOne(
-    `INSERT INTO users (
-      email, username, first_name, last_name, 
-      auth_provider, auth_id, is_verified, is_profile_complete
-    ) VALUES ($1, $2, $3, $4, $5, $6, true, false)
-    RETURNING *`,
-    [email, finalUsername, safeFirstName, safeLastName, provider, providerId]
-  );
-
-  return newUser;
+  throw new Error('Could not generate a unique username for OAuth signup');
 };
 
 export const getGoogleAuthURL = (state) => {

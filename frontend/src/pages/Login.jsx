@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Input, Button, Alert } from '../components/ui/Input';
-import { Heart } from 'lucide-react';
+import { Heart, Loader } from 'lucide-react';
 import { API_URL } from '../config';
 
 const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login } = useAuth();
+  const { login, refreshUser } = useAuth();
 
   const [formData, setFormData] = useState({
     username: '',
@@ -25,14 +25,25 @@ const Login = () => {
     const urlError = params.get('error');
 
     if (token) {
+      // OAuth success: store the token and bootstrap the session *client-side*
+      // (no full page reload — avoids tearing down the socket/HMR connection
+      // mid-navigation), then route by completeness instead of bouncing through
+      // /browse → /complete-profile.
       localStorage.setItem('token', token);
-      window.location.href = '/browse'; 
+      refreshUser().then((u) => {
+        navigate(u?.isProfileComplete ? '/browse' : '/complete-profile', { replace: true });
+      });
     }
 
     if (urlError) {
       setError('Authentication failed via provider.');
     }
-  }, [location]);
+  }, [location, refreshUser, navigate]);
+
+  // OAuth lands here with ?token=...; the useEffect above stores it and
+  // bootstraps the session. Show a spinner (not the login form) meanwhile,
+  // otherwise the form flashes for ~1s before the redirect.
+  const isOAuthCallback = new URLSearchParams(location.search).has('token');
 
   const successMessage = location.state?.message;
 
@@ -62,6 +73,14 @@ const Login = () => {
       }
     }
   };
+
+  if (isOAuthCallback) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Loader className="w-8 h-8 text-primary-500 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[60vh] flex items-center justify-center">
