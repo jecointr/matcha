@@ -134,6 +134,9 @@ router.get('/browse', async (req, res) => {
       case 'age':
         orderBy = `u.birth_date ${order === 'ASC' ? 'DESC' : 'ASC'}`;
         break;
+      case 'tags':
+        orderBy = `common_tags ${order}`;
+        break;
       case 'match':
       default:
         orderBy = `(${tagsCountQuery} * 10 + u.fame_rating - COALESCE(${distanceFormula}, 100)/10) DESC`;

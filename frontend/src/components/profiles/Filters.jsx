@@ -88,7 +88,7 @@ const Filters = ({ filters, onChange, onSearch, isSearch = false }) => {
             <optgroup label="Relevance" className="dark:bg-gray-900">
               <option value="match">Best Match</option>
               <option value="distance">Nearest First</option>
-              {isSearch && <option value="tags">Most Common Tags</option>}
+              <option value="tags">Most Common Tags</option>
             </optgroup>
             
             <optgroup label="Age" className="dark:bg-gray-900">
