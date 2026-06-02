@@ -91,12 +91,10 @@ export const SocketProvider = ({ children }) => {
     });
 
     newSocket.on('connect', () => {
-      console.log('Socket connected');
       setConnected(true);
     });
 
     newSocket.on('disconnect', () => {
-      console.log('Socket disconnected');
       setConnected(false);
     });
 
@@ -105,8 +103,6 @@ export const SocketProvider = ({ children }) => {
     });
 
     newSocket.on('notification', (notification) => {
-      console.log('Received notification:', notification);
-      
       // Skip the +1 if the user is already viewing this conversation
       const url = new URL(window.location.href);
       const isChat = url.pathname === '/chat';
@@ -141,7 +137,6 @@ export const SocketProvider = ({ children }) => {
         return; 
       }
 
-      console.log('Global message received:', message);
       setUnreadMessages(prev => prev + 1);
     });
 
