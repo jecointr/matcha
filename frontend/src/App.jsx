@@ -59,7 +59,7 @@ const NotFound = () => (
 // Header component with auth and notifications
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, isProfileComplete, user, logout } = useAuth();
   const navigate = useNavigate();
   const { unreadMessages, unreadNotifications } = useSocket();
 
@@ -74,7 +74,7 @@ const Header = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link to={isAuthenticated ? '/browse' : '/'} className="flex items-center space-x-2">
+          <Link to={!isAuthenticated ? '/' : (isProfileComplete ? '/browse' : '/complete-profile')} className="flex items-center space-x-2">
             <img
               src="/logo.png"
               alt="Logo Matcha"
@@ -87,32 +87,39 @@ const Header = () => {
           <nav className="hidden md:flex items-center space-x-2">
             {isAuthenticated ? (
               <>
-                <Link to="/browse" className="flex items-center text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                  <Compass className="h-5 w-5 mr-1" />
-                  Browse
-                </Link>
-                <Link to="/map" className="flex items-center text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                  <MapPin className="h-5 w-5 mr-1" />
-                  Map
-                </Link>
-                <Link to="/chat" className="relative text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                  <MessageCircle className="h-6 w-6" />
-                  {unreadMessages > 0 && (
-                    <span className="absolute top-1 right-1 h-2.5 w-2.5 bg-red-500 rounded-full ring-2 ring-white dark:ring-gray-900"></span>
-                  )}
-                </Link>
-                <Link to="/notifications" className="relative text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                  <Bell className="h-6 w-6" />
-                  {unreadNotifications > 0 && (
-                    <span className="absolute top-1 right-2 h-2.5 w-2.5 bg-red-500 rounded-full ring-2 ring-white dark:ring-gray-900"></span>
-                  )}
-                </Link>
-                <Link to="/profile" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                  <User className="h-6 w-6" />
-                </Link>
-                
-                <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-2" />
-                
+                {/* App nav links appear only once the profile is complete — during
+                    the mandatory completion step we show a minimal header (theme +
+                    logout) like onboarding flows in pro apps, so no links bounce back. */}
+                {isProfileComplete && (
+                  <>
+                    <Link to="/browse" className="flex items-center text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                      <Compass className="h-5 w-5 mr-1" />
+                      Browse
+                    </Link>
+                    <Link to="/map" className="flex items-center text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                      <MapPin className="h-5 w-5 mr-1" />
+                      Map
+                    </Link>
+                    <Link to="/chat" className="relative text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                      <MessageCircle className="h-6 w-6" />
+                      {unreadMessages > 0 && (
+                        <span className="absolute top-1 right-1 h-2.5 w-2.5 bg-red-500 rounded-full ring-2 ring-white dark:ring-gray-900"></span>
+                      )}
+                    </Link>
+                    <Link to="/notifications" className="relative text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                      <Bell className="h-6 w-6" />
+                      {unreadNotifications > 0 && (
+                        <span className="absolute top-1 right-2 h-2.5 w-2.5 bg-red-500 rounded-full ring-2 ring-white dark:ring-gray-900"></span>
+                      )}
+                    </Link>
+                    <Link to="/profile" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                      <User className="h-6 w-6" />
+                    </Link>
+
+                    <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-2" />
+                  </>
+                )}
+
                 <ThemeToggle />
                 
                 <button
@@ -154,24 +161,28 @@ const Header = () => {
             <div className="flex flex-col space-y-1">
               {isAuthenticated ? (
                 <>
-                  <Link to="/browse" className="px-3 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg flex items-center transition-colors" onClick={() => setIsMenuOpen(false)}>
-                    <Compass className="h-5 w-5 mr-2" /> Browse
-                  </Link>
-                  <Link to="/map" className="px-3 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg flex items-center transition-colors" onClick={() => setIsMenuOpen(false)}>
-                    <MapPin className="h-5 w-5 mr-2" /> Map
-                  </Link>
-                  <Link to="/chat" className="px-3 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg flex items-center justify-between transition-colors" onClick={() => setIsMenuOpen(false)}>
-                    <span className="flex items-center"><MessageCircle className="h-5 w-5 mr-2" /> Messages</span>
-                    {unreadMessages > 0 && <span className="h-2.5 w-2.5 bg-red-500 rounded-full"></span>}
-                  </Link>
-                  <Link to="/notifications" className="px-3 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg flex items-center justify-between transition-colors" onClick={() => setIsMenuOpen(false)}>
-                    <span className="flex items-center"><Bell className="h-5 w-5 mr-2" /> Notifications</span>
-                    {unreadNotifications > 0 && <span className="h-2.5 w-2.5 bg-red-500 rounded-full"></span>}
-                  </Link>
-                  <Link to="/profile" className="px-3 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg flex items-center transition-colors" onClick={() => setIsMenuOpen(false)}>
-                    <User className="h-5 w-5 mr-2" /> Profile
-                  </Link>
-                  <hr className="my-2 dark:border-gray-800" />
+                  {isProfileComplete && (
+                    <>
+                      <Link to="/browse" className="px-3 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg flex items-center transition-colors" onClick={() => setIsMenuOpen(false)}>
+                        <Compass className="h-5 w-5 mr-2" /> Browse
+                      </Link>
+                      <Link to="/map" className="px-3 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg flex items-center transition-colors" onClick={() => setIsMenuOpen(false)}>
+                        <MapPin className="h-5 w-5 mr-2" /> Map
+                      </Link>
+                      <Link to="/chat" className="px-3 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg flex items-center justify-between transition-colors" onClick={() => setIsMenuOpen(false)}>
+                        <span className="flex items-center"><MessageCircle className="h-5 w-5 mr-2" /> Messages</span>
+                        {unreadMessages > 0 && <span className="h-2.5 w-2.5 bg-red-500 rounded-full"></span>}
+                      </Link>
+                      <Link to="/notifications" className="px-3 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg flex items-center justify-between transition-colors" onClick={() => setIsMenuOpen(false)}>
+                        <span className="flex items-center"><Bell className="h-5 w-5 mr-2" /> Notifications</span>
+                        {unreadNotifications > 0 && <span className="h-2.5 w-2.5 bg-red-500 rounded-full"></span>}
+                      </Link>
+                      <Link to="/profile" className="px-3 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg flex items-center transition-colors" onClick={() => setIsMenuOpen(false)}>
+                        <User className="h-5 w-5 mr-2" /> Profile
+                      </Link>
+                      <hr className="my-2 dark:border-gray-800" />
+                    </>
+                  )}
                   <button
                     onClick={() => { handleLogout(); setIsMenuOpen(false); }}
                     className="px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg flex items-center w-full text-left transition-colors"
