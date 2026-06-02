@@ -33,6 +33,21 @@ const RecenterMap = ({ lat, lng }) => {
   return null;
 };
 
+// Round profile-photo marker (dating-app style) so isolated users read as faces
+// on the map instead of the generic blue pin clashing with the cluster bubbles.
+const buildUserIcon = (user) => {
+  const src = user.profile_picture
+    ? `${API_URL.replace('/api', '')}/uploads/${user.profile_picture}`
+    : '/default-avatar.svg';
+  return L.divIcon({
+    className: 'user-marker',
+    html: `<img src="${src}" alt="" onerror="this.src='/default-avatar.svg'" />`,
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+    popupAnchor: [0, -22],
+  });
+};
+
 const MapPage = () => {
   const toast = useToast();
   const [users, setUsers] = useState([]);
@@ -153,12 +168,13 @@ const MapPage = () => {
           <Marker
             key={user.id}
             position={[user.latitude, user.longitude]}
+            icon={buildUserIcon(user)}
           >
             <Popup className="custom-popup">
               <div className="w-32 text-center transition-colors">
                 <div className="w-16 h-16 mx-auto mb-2 rounded-full overflow-hidden border-2 border-primary-500">
                   <img 
-                    src={user.profile_picture ? `${API_URL.replace('/api', '')}/uploads/${user.profile_picture}` : '/default-avatar.png'} 
+                    src={user.profile_picture ? `${API_URL.replace('/api', '')}/uploads/${user.profile_picture}` : '/default-avatar.svg'} 
                     alt={user.username}
                     className="w-full h-full object-cover"
                   />

@@ -88,6 +88,19 @@
   filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
 }
 
+/* Round profile-photo markers for individual users on the map */
+.user-marker img {
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  object-fit: cover;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+.dark .user-marker img {
+  border-color: #1f2937; /* gray-800 */
+}
+
 /* Style de la bulle Popup Leaflet */
 .dark .leaflet-popup-content-wrapper,
 .dark .leaflet-popup-tip {
