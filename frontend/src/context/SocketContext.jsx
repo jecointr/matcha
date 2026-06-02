@@ -166,15 +166,15 @@ export const SocketProvider = ({ children }) => {
     }
   }, [socket, connected]);
 
-  const startTyping = useCallback((conversationId) => {
+  const startTyping = useCallback((conversationId, toUserId) => {
     if (socket && connected) {
-      socket.emit('typing:start', { conversationId });
+      socket.emit('typing:start', { conversationId, toUserId });
     }
   }, [socket, connected]);
 
-  const stopTyping = useCallback((conversationId) => {
+  const stopTyping = useCallback((conversationId, toUserId) => {
     if (socket && connected) {
-      socket.emit('typing:stop', { conversationId });
+      socket.emit('typing:stop', { conversationId, toUserId });
     }
   }, [socket, connected]);
 

@@ -45,7 +45,9 @@ const Chat = () => {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
-  const [typingUsers, setTypingUsers] = useState({});
+  // Who is typing, keyed by conversationId. Tracked for *all* conversations
+  // (not just the open one) so the bubble can show in the sidebar list too.
+  const [typingConvs, setTypingConvs] = useState({});
   const [hasMore, setHasMore] = useState(false);
   const [showEventModal, setShowEventModal] = useState(false);
   const [events, setEvents] = useState([]);
@@ -106,6 +108,27 @@ const Chat = () => {
     }
   };
 
+  // Date lifecycle messages (proposed / accepted / declined / cancelled) are sent
+  // as normal chat messages. The backend only pushes chat:message to the *other*
+  // user, so without echoing it locally the actor never sees their own event
+  // message in their thread. This appends it on our side + bumps the sidebar
+  // preview, exactly like handleSend does for typed messages.
+  const sendEventMessage = async (content) => {
+    const res = await chatAPI.sendMessage(activeConversation.id, content);
+    const message = { ...res.data.message, isOwn: true };
+
+    setMessages(prev => prev.some(m => m.id === message.id) ? prev : [...prev, message]);
+    scrollToBottom();
+
+    setConversations(prev => {
+      const activeId = Number(activeConversation.id);
+      const idx = prev.findIndex(c => Number(c.id) === activeId);
+      if (idx === -1) return prev;
+      const updated = { ...prev[idx], lastMessage: content, lastMessageAt: new Date().toISOString() };
+      return [updated, ...prev.filter(c => Number(c.id) !== activeId)];
+    });
+  };
+
   const handleCreateEvent = async (eventData) => {
     setCreatingEvent(true);
     try {
@@ -116,7 +139,7 @@ const Chat = () => {
       setShowEventModal(false);
       loadEvents(activeConversation.otherUser.id);
 
-      await chatAPI.sendMessage(activeConversation.id, "📅 I just proposed a date! Check the details above.");
+      await sendEventMessage("📅 I just proposed a date! Check the details above.");
     } catch (err) {
       // 409 = a pending date already exists (#15); otherwise a validation/date error
       toast.error(
@@ -173,7 +196,7 @@ const Chat = () => {
         : status === 'declined'
           ? "❌ I declined the date."
           : "🚫 I cancelled the date.";
-      await chatAPI.sendMessage(activeConversation.id, msg);
+      await sendEventMessage(msg);
     } catch (err) {
       console.error('Update status failed', err);
       // Surface the error (e.g. date already resolved server-side) and resync the UI
@@ -251,22 +274,33 @@ const Chat = () => {
       return () => {
         leaveChat(activeConversation.id);
         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-        Object.values(typingTimeouts.current).forEach(clearTimeout); 
+        // Note: we intentionally don't clear typingTimeouts here — those are the
+        // per-conversation expiry timers that keep the sidebar bubble accurate
+        // for *other* conversations while this one is open.
       };
     }
   }, [activeConversation?.id]);
+
+  // Clear all pending typing-expiry timers when leaving the chat page.
+  useEffect(() => {
+    const timers = typingTimeouts.current;
+    return () => Object.values(timers).forEach(clearTimeout);
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onChatMessage((message) => {
       if (message.senderId === user.id) return;
 
-      setTypingUsers(prev => {
+      const msgConvId = Number(message.conversationId || message.conversation_id);
+
+      // A delivered message means they stopped typing in that conversation.
+      if (typingTimeouts.current[msgConvId]) clearTimeout(typingTimeouts.current[msgConvId]);
+      setTypingConvs(prev => {
         const next = { ...prev };
-        delete next[message.senderId];
+        delete next[msgConvId];
         return next;
       });
 
-      const msgConvId = Number(message.conversationId || message.conversation_id);
       const activeConvId = activeConversation ? Number(activeConversation.id) : null;
 
       if (activeConvId === msgConvId) {
@@ -305,29 +339,31 @@ const Chat = () => {
   }, [onChatMessage, activeConversation, user.id]);
 
   useEffect(() => {
+    const clearTyping = (convId) => {
+      if (typingTimeouts.current[convId]) clearTimeout(typingTimeouts.current[convId]);
+      setTypingConvs(prev => {
+        const next = { ...prev };
+        delete next[convId];
+        return next;
+      });
+    };
+
     const unsubscribe = onTyping((data) => {
-      if (Number(data.conversationId) === Number(activeConversation?.id)) {
-        if (data.type === 'typing:start') {
-          setTypingUsers(prev => ({ ...prev, [data.userId]: true }));
+      const convId = Number(data.conversationId);
+
+      if (data.type === 'typing:start') {
+        setTypingConvs(prev => ({ ...prev, [convId]: true }));
+
+        // Keep the open conversation pinned to the latest line.
+        if (convId === Number(activeConversation?.id)) {
           setTimeout(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, 50);
-
-          if (typingTimeouts.current[data.userId]) clearTimeout(typingTimeouts.current[data.userId]);
-          typingTimeouts.current[data.userId] = setTimeout(() => {
-            setTypingUsers(prev => {
-              const next = { ...prev };
-              delete next[data.userId];
-              return next;
-            });
-          }, 3000);
-
-        } else {
-          if (typingTimeouts.current[data.userId]) clearTimeout(typingTimeouts.current[data.userId]);
-          setTypingUsers(prev => {
-            const next = { ...prev };
-            delete next[data.userId];
-            return next;
-          });
         }
+
+        // Auto-expire if no explicit "stop" arrives (e.g. the sender's tab closed).
+        if (typingTimeouts.current[convId]) clearTimeout(typingTimeouts.current[convId]);
+        typingTimeouts.current[convId] = setTimeout(() => clearTyping(convId), 3000);
+      } else {
+        clearTyping(convId);
       }
     });
     return unsubscribe;
@@ -394,7 +430,7 @@ const Chat = () => {
     if (!newMessage.trim() || sending || !activeConversation) return;
 
     if (activeConversation) {
-      stopTyping(activeConversation.id);
+      stopTyping(activeConversation.id, activeConversation.otherUser.id);
       isTypingRef.current = false;
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     }
@@ -462,21 +498,23 @@ const Chat = () => {
     
     if (!activeConversation) return;
 
+    const otherUserId = activeConversation.otherUser.id;
+
     if (value.trim() === '') {
-      stopTyping(activeConversation.id);
+      stopTyping(activeConversation.id, otherUserId);
       isTypingRef.current = false;
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       return;
     }
 
-    startTyping(activeConversation.id);
+    startTyping(activeConversation.id, otherUserId);
 
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
-    
+
     typingTimeoutRef.current = setTimeout(() => {
-      stopTyping(activeConversation.id);
+      stopTyping(activeConversation.id, otherUserId);
     }, 2000);
   };
 
@@ -588,6 +626,15 @@ const Chat = () => {
                   </div>
                   {ended ? (
                     <p className="text-sm truncate italic text-gray-400 dark:text-gray-500">Connection ended</p>
+                  ) : typingConvs[conv.id] ? (
+                    <span className="text-sm flex items-center gap-1.5 text-primary-500 dark:text-primary-400 font-medium">
+                      typing
+                      <span className="flex gap-0.5">
+                        <span className="w-1 h-1 bg-primary-500 dark:bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="w-1 h-1 bg-primary-500 dark:bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <span className="w-1 h-1 bg-primary-500 dark:bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                      </span>
+                    </span>
                   ) : (
                     <p className={`text-sm truncate transition-colors duration-200 ${conv.unreadCount > 0 ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>
                       {conv.lastMessage || 'Start a conversation'}
@@ -896,7 +943,7 @@ const Chat = () => {
               })}
               
               {/* Typing indicator */}
-              {Object.keys(typingUsers).length > 0 && (
+              {typingConvs[Number(activeConversation.id)] && (
                 <div className="flex justify-start">
                   <div className="bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-2xl rounded-bl-md transition-colors duration-200">
                     <div className="flex gap-1">

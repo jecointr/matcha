@@ -68,16 +68,26 @@ export const initializeSocket = (io) => {
       socket.leave(`chat:${conversationId}`);
     });
 
-    // Chat: typing indicator
+    // Chat: typing indicator.
+    // Emit to the recipient's personal room (like chat:message) so the typing
+    // bubble shows even when they don't have this conversation open — driving
+    // the WhatsApp-style indicator in the conversation list. Falls back to the
+    // conversation room if the client didn't send the recipient id.
     socket.on('typing:start', (data) => {
-      socket.to(`chat:${data.conversationId}`).emit('typing:start', {
+      const target = data.toUserId
+        ? io.to(`user:${data.toUserId}`)
+        : socket.to(`chat:${data.conversationId}`);
+      target.emit('typing:start', {
         userId,
         conversationId: data.conversationId
       });
     });
 
     socket.on('typing:stop', (data) => {
-      socket.to(`chat:${data.conversationId}`).emit('typing:stop', {
+      const target = data.toUserId
+        ? io.to(`user:${data.toUserId}`)
+        : socket.to(`chat:${data.conversationId}`);
+      target.emit('typing:stop', {
         userId,
         conversationId: data.conversationId
       });
