@@ -71,17 +71,17 @@ export const FeedbackProvider = ({ children }) => {
       {children}
 
       {/* Toasts */}
-      <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 w-80 max-w-[calc(100vw-2rem)] pointer-events-none">
+      <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 w-96 max-w-[calc(100vw-2rem)] pointer-events-none">
         {toasts.map((t) => {
           const { Icon, border, text } = TYPE_STYLES[t.type] || TYPE_STYLES.info;
           return (
             <div
               key={t.id}
               role="status"
-              className={`pointer-events-auto flex items-start gap-3 bg-white dark:bg-gray-800 border-l-4 ${border} shadow-lg rounded-lg p-3 animate-in slide-in-from-right-4 fade-in duration-200`}
+              className={`pointer-events-auto flex items-start gap-3 bg-white dark:bg-gray-800 border-l-4 ${border} shadow-xl rounded-lg p-4 animate-in slide-in-from-right-4 fade-in duration-200`}
             >
               <Icon className={`w-5 h-5 shrink-0 mt-0.5 ${text}`} />
-              <p className="flex-1 text-sm text-gray-800 dark:text-gray-100 break-words">{t.message}</p>
+              <p className="flex-1 text-sm font-medium text-gray-800 dark:text-gray-100 break-words">{t.message}</p>
               <button
                 onClick={() => remove(t.id)}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 shrink-0 transition-colors"
