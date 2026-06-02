@@ -282,6 +282,17 @@ router.delete('/photos/:photoId', async (req, res) => {
       return res.status(404).json({ error: 'Photo not found' });
     }
 
+    // Keep at least one photo. Without a picture a user can't "like" (subject
+    // IV.5) and their profile would silently flip to incomplete, locking them
+    // out. Refuse to delete the last remaining photo.
+    const { count } = await queryOne(
+      'SELECT COUNT(*)::int as count FROM photos WHERE user_id = $1',
+      [req.userId]
+    );
+    if (count <= 1) {
+      return res.status(400).json({ error: 'You must keep at least one photo.' });
+    }
+
     // Delete from database
     await query('DELETE FROM photos WHERE id = $1', [photoId]);
 

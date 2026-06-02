@@ -83,6 +83,12 @@ const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
   };
 
   const handleDelete = async (photoId) => {
+    // A profile must keep at least one photo (no photo → can't "like", subject
+    // IV.5, and the profile would become incomplete). Backend enforces this too.
+    if (photos.length <= 1) {
+      toast.error('You must keep at least one photo.');
+      return;
+    }
     const ok = await confirm({
       title: 'Delete photo',
       message: 'Delete this photo?',
@@ -121,6 +127,12 @@ const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
         Photos ({photos.length}/{maxPhotos})
       </label>
 
+      {photos.length === 1 && (
+        <p className="mb-2 text-xs text-gray-400 dark:text-gray-500">
+          At least one photo is required, so this one can't be deleted.
+        </p>
+      )}
+
       {error && (
         <div className="mb-3 p-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded transition-colors animate-fade-in">
           {error}
@@ -153,8 +165,13 @@ const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
               )}
               <button
                 onClick={() => handleDelete(photo.id)}
-                className="p-2 bg-white rounded-full text-red-500 hover:bg-red-50 cursor-pointer transition-transform hover:scale-110"
-                title="Delete"
+                disabled={photos.length <= 1}
+                className={`p-2 bg-white rounded-full transition-transform ${
+                  photos.length <= 1
+                    ? 'text-gray-300 cursor-not-allowed'
+                    : 'text-red-500 hover:bg-red-50 cursor-pointer hover:scale-110'
+                }`}
+                title={photos.length <= 1 ? 'You must keep at least one photo' : 'Delete'}
               >
                 <X className="w-4 h-4" />
               </button>
