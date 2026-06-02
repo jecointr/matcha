@@ -7,10 +7,11 @@ const LocationPicker = ({ location, onUpdate }) => {
   const [error, setError] = useState('');
   const [manualMode, setManualMode] = useState(!location?.latitude);
 
-  // Autocomplete state
-  const [queryText, setQueryText] = useState(
-    location?.city ? `${location.city}${location.country ? `, ${location.country}` : ''}` : ''
-  );
+  // Autocomplete state. Starts empty (even when a location is already set): the
+  // current location is shown in the green banner below, not in this input. This
+  // avoids pre-filling an unsaveable value (no suggestion selected) and a useless
+  // geocoder request on mount.
+  const [queryText, setQueryText] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [searching, setSearching] = useState(false);
   // Guardrail: a location can only be saved if it comes from a real, selected
@@ -217,7 +218,13 @@ const LocationPicker = ({ location, onUpdate }) => {
             {location.city}{location.country ? `, ${location.country}` : ''}
           </span>
           <button
-            onClick={() => setManualMode(true)}
+            onClick={() => {
+              setManualMode(true);
+              setQueryText('');
+              setSelectedPlace(null);
+              setSuggestions([]);
+              setError('');
+            }}
             className="ml-auto text-sm text-green-600 dark:text-green-400 hover:underline cursor-pointer font-medium"
           >
             Change
