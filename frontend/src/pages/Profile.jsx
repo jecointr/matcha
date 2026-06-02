@@ -15,6 +15,10 @@ import {
 
 import { API_URL } from '../config';
 
+// Minimum number of interests, kept in sync with the backend (users.js MIN_TAGS)
+// and the profile-creation flow so editing can't drop a profile below it.
+const MIN_TAGS = 3;
+
 const Profile = () => {
   const { user, refreshUser, logout } = useAuth();
   const toast = useToast();
@@ -148,6 +152,14 @@ const Profile = () => {
   }, [blocker]);
 
   const handleSave = async () => {
+    // Keep the same rule as profile creation: at least 3 interests. Without this,
+    // removing tags in edit mode silently flips the profile to "incomplete"
+    // (hidden from Browse/Search, 404 for others, redirect to /complete-profile).
+    if (tags.length < MIN_TAGS) {
+      setError(`Please select at least ${MIN_TAGS} interests.`);
+      return;
+    }
+
     setSaving(true);
     setError('');
     setSuccess('');
@@ -303,26 +315,6 @@ const Profile = () => {
               </span>
             </div>
           </div>
-
-          {/* Edit button */}
-          <div>
-            {!editMode ? (
-              <Button onClick={() => setEditMode(true)} variant="outline">
-                <Edit2 className="w-4 h-4 mr-2" />
-                Edit Profile
-              </Button>
-            ) : (
-              <div className="flex gap-2">
-                <Button onClick={handleSave} loading={saving}>
-                  <Save className="w-4 h-4 mr-2" />
-                  Save
-                </Button>
-                <Button onClick={handleCancel} variant="secondary">
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-            )}
-          </div>
         </div>
       </div>
 
@@ -358,6 +350,26 @@ const Profile = () => {
         {/* Profile Tab */}
         {activeTab === 'profile' && (
           <div className="space-y-6">
+            {/* Edit controls — scoped to the Profile section (they only drive this tab) */}
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold dark:text-white">My profile</h3>
+              {!editMode ? (
+                <Button onClick={() => setEditMode(true)} variant="outline">
+                  <Edit2 className="w-4 h-4 mr-2" />
+                  Edit Profile
+                </Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Button onClick={handleSave} loading={saving}>
+                    <Save className="w-4 h-4 mr-2" />
+                    Save
+                  </Button>
+                  <Button onClick={handleCancel} variant="secondary">
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
             {editMode ? (
               <>
                 {/* Edit form */}
@@ -440,6 +452,9 @@ const Profile = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Interests</label>
                   <TagSelect selectedTags={tags} onUpdate={setTags} maxTags={10} />
+                  <p className={`text-sm mt-1 ${tags.length < MIN_TAGS ? 'text-red-500 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                    {tags.length}/{MIN_TAGS} minimum interests
+                  </p>
                 </div>
               </>
             ) : (
