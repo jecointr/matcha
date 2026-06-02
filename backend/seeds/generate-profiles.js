@@ -52,7 +52,11 @@ const LAST_NAMES = [
   'Morris', 'Murphy', 'Cook', 'Rogers', 'Morgan', 'Peterson', 'Cooper', 'Reed', 'Bailey'
 ];
 
-// Cities with approximate coordinates
+// French cities with approximate coordinates.
+// France-only on purpose: the demo runs in France, so a single-country pool keeps
+// distances realistic (tens/hundreds of km, not thousands) and makes proximity-based
+// matching / "same area priority" actually convincing. Several cities are kept so the
+// location filter & distance sort stay demonstrable.
 const CITIES = [
   { city: 'Paris', country: 'France', lat: 48.8566, lng: 2.3522 },
   { city: 'Lyon', country: 'France', lat: 45.7640, lng: 4.8357 },
@@ -64,17 +68,12 @@ const CITIES = [
   { city: 'Lille', country: 'France', lat: 50.6292, lng: 3.0573 },
   { city: 'Strasbourg', country: 'France', lat: 48.5734, lng: 7.7521 },
   { city: 'Montpellier', country: 'France', lat: 43.6108, lng: 3.8767 },
-  { city: 'London', country: 'UK', lat: 51.5074, lng: -0.1278 },
-  { city: 'Manchester', country: 'UK', lat: 53.4808, lng: -2.2426 },
-  { city: 'Birmingham', country: 'UK', lat: 52.4862, lng: -1.8904 },
-  { city: 'Berlin', country: 'Germany', lat: 52.5200, lng: 13.4050 },
-  { city: 'Munich', country: 'Germany', lat: 48.1351, lng: 11.5820 },
-  { city: 'Barcelona', country: 'Spain', lat: 41.3851, lng: 2.1734 },
-  { city: 'Madrid', country: 'Spain', lat: 40.4168, lng: -3.7038 },
-  { city: 'Amsterdam', country: 'Netherlands', lat: 52.3676, lng: 4.9041 },
-  { city: 'Brussels', country: 'Belgium', lat: 50.8503, lng: 4.3517 },
-  { city: 'Rome', country: 'Italy', lat: 41.9028, lng: 12.4964 },
 ];
+
+// Demo city: ~half the profiles cluster here so there's always a dense local pool
+// around the evaluee. Change PRIMARY_CITY (and re-seed) if you demo from elsewhere.
+const PRIMARY_CITY = 'Paris';
+const PRIMARY_CITY_WEIGHT = 0.5;
 
 const BIOGRAPHIES = [
   "Love exploring new places and trying different cuisines. Always up for an adventure! 🌍",
@@ -142,6 +141,15 @@ const generateUsername = (firstName, lastName, index) => {
   return `${randomElement(variants)}_${index}`;
 };
 
+// Weighted city pick: ~PRIMARY_CITY_WEIGHT land in the demo city, the rest spread
+// across the other cities (keeps the location filter/sort meaningful).
+const pickCity = () => {
+  const primary = CITIES.find((c) => c.city === PRIMARY_CITY);
+  if (primary && Math.random() < PRIMARY_CITY_WEIGHT) return primary;
+  const others = CITIES.filter((c) => c.city !== PRIMARY_CITY);
+  return randomElement(others.length ? others : CITIES);
+};
+
 const addLocationVariance = (lat, lng) => {
   // Add small random variance (roughly within same city area)
   const latVariance = randomFloat(-0.1, 0.1);
@@ -197,7 +205,7 @@ async function seed() {
         }
 
         // Location
-        const location = randomElement(CITIES);
+        const location = pickCity();
         const { lat, lng } = addLocationVariance(location.lat, location.lng);
 
         // Biography
