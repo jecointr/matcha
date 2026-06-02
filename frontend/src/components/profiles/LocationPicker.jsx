@@ -1,13 +1,24 @@
-import { useState } from 'react';
-import { MapPin, Navigation, Loader, AlertCircle } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { MapPin, Navigation, Loader, AlertCircle, Search, Check } from 'lucide-react';
 import { userAPI } from '../../services/api';
 
 const LocationPicker = ({ location, onUpdate }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [manualMode, setManualMode] = useState(!location?.latitude);
-  const [manualCity, setManualCity] = useState(location?.city || '');
-  const [manualCountry, setManualCountry] = useState(location?.country || '');
+
+  // Autocomplete state
+  const [queryText, setQueryText] = useState(
+    location?.city ? `${location.city}${location.country ? `, ${location.country}` : ''}` : ''
+  );
+  const [suggestions, setSuggestions] = useState([]);
+  const [searching, setSearching] = useState(false);
+  // Guardrail: a location can only be saved if it comes from a real, selected
+  // suggestion (with coordinates) — never from raw free text. Typing again
+  // clears the selection, forcing the user to pick a suggestion before saving.
+  const [selectedPlace, setSelectedPlace] = useState(null);
+
+  const abortRef = useRef(null);
 
   // Get the GPS position
   const handleGetLocation = async () => {
@@ -55,7 +66,7 @@ const LocationPicker = ({ location, onUpdate }) => {
       () => {
         // Permission denied or unavailable → manual entry
         setLoading(false);
-        setError('Location permission denied or unavailable. Please enter your city manually.');
+        setError('Location permission denied or unavailable. Please search for your city.');
         setManualMode(true);
       },
       {
@@ -73,7 +84,7 @@ const LocationPicker = ({ location, onUpdate }) => {
         { headers: { 'Accept-Language': 'en' } }
       );
       const data = await response.json();
-      
+
       return {
         city: data.address?.city || data.address?.town || data.address?.village || 'Unknown',
         country: data.address?.country || 'Unknown'
@@ -83,9 +94,78 @@ const LocationPicker = ({ location, onUpdate }) => {
     }
   };
 
+  // --- City autocomplete (OpenStreetMap / Nominatim) ---
+  // Debounced search: we never query on every keystroke (Nominatim's usage
+  // policy caps at ~1 req/s). Stale in-flight requests are aborted.
+  useEffect(() => {
+    // Don't search right after a pick, or for too-short queries.
+    if (selectedPlace || queryText.trim().length < 3) {
+      setSuggestions([]);
+      return;
+    }
+
+    const handle = setTimeout(async () => {
+      if (abortRef.current) abortRef.current.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      setSearching(true);
+      try {
+        // Photon (Komoot) — OSM-based geocoder built for type-ahead autocomplete.
+        // Restricted to populated places (city/town/village) for the right granularity.
+        const url =
+          `https://photon.komoot.io/api/?q=${encodeURIComponent(queryText.trim())}` +
+          `&limit=6&lang=en&osm_tag=place:city&osm_tag=place:town&osm_tag=place:village`;
+        const res = await fetch(url, { signal: controller.signal });
+        const data = await res.json();
+
+        const seen = new Set();
+        const places = (data.features || [])
+          .map((f) => {
+            const p = f.properties || {};
+            const [lng, lat] = f.geometry?.coordinates || [];
+            const city = p.name || p.city || '';
+            const region = p.state || p.county || '';
+            const country = p.country || '';
+            return {
+              lat,
+              lng,
+              city,
+              country,
+              shortLabel: [city, country].filter(Boolean).join(', '),
+              label: [city, region, country].filter(Boolean).join(', ')
+            };
+          })
+          // Keep only real, geocodable localities; dedupe by full label.
+          .filter((pl) => pl.city && typeof pl.lat === 'number' && typeof pl.lng === 'number')
+          .filter((pl) => {
+            if (seen.has(pl.label)) return false;
+            seen.add(pl.label);
+            return true;
+          });
+
+        setSuggestions(places);
+      } catch (err) {
+        if (err.name !== 'AbortError') setSuggestions([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 200);
+
+    return () => clearTimeout(handle);
+  }, [queryText, selectedPlace]);
+
+  const handleSelectSuggestion = (place) => {
+    setSelectedPlace(place);
+    setQueryText(place.shortLabel);
+    setSuggestions([]);
+    setError('');
+  };
+
   const handleSaveManual = async () => {
-    if (!manualCity.trim()) {
-      setError('Please enter a city');
+    // Guardrail: only a selected suggestion (with coordinates) can be saved.
+    if (!selectedPlace) {
+      setError('Please pick a city from the suggestions.');
       return;
     }
 
@@ -93,21 +173,19 @@ const LocationPicker = ({ location, onUpdate }) => {
     setError('');
 
     try {
-      const coords = await geocodeCity(manualCity, manualCountry);
-      
       await userAPI.updateLocation({
-        latitude: coords?.lat || null,
-        longitude: coords?.lng || null,
-        city: manualCity.trim(),
-        country: manualCountry.trim() || null,
+        latitude: selectedPlace.lat,
+        longitude: selectedPlace.lng,
+        city: selectedPlace.city,
+        country: selectedPlace.country || null,
         consent: false
       });
 
       onUpdate({
-        latitude: coords?.lat,
-        longitude: coords?.lng,
-        city: manualCity.trim(),
-        country: manualCountry.trim(),
+        latitude: selectedPlace.lat,
+        longitude: selectedPlace.lng,
+        city: selectedPlace.city,
+        country: selectedPlace.country,
         consent: false
       });
       setManualMode(false);
@@ -115,23 +193,6 @@ const LocationPicker = ({ location, onUpdate }) => {
       setError(err.response?.data?.error || 'Failed to save location');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const geocodeCity = async (city, country) => {
-    try {
-      const query = country ? `${city}, ${country}` : city;
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`
-      );
-      const data = await response.json();
-      
-      if (data.length > 0) {
-        return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-      }
-      return null;
-    } catch {
-      return null;
     }
   };
 
@@ -187,26 +248,53 @@ const LocationPicker = ({ location, onUpdate }) => {
             <div className="flex-1 h-px bg-gray-200 dark:bg-gray-800"></div>
           </div>
 
-          {/* Saisie Manuelle */}
+          {/* Saisie Manuelle — autocomplete géocodé */}
           <div className="space-y-3">
-            <input
-              type="text"
-              value={manualCity}
-              onChange={(e) => setManualCity(e.target.value)}
-              placeholder="City *"
-              className="input"
-            />
-            <input
-              type="text"
-              value={manualCountry}
-              onChange={(e) => setManualCountry(e.target.value)}
-              placeholder="Country (optional)"
-              className="input"
-            />
+            <div className="relative">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                <input
+                  type="text"
+                  value={queryText}
+                  onChange={(e) => {
+                    setQueryText(e.target.value);
+                    setSelectedPlace(null); // typing invalidates any previous pick
+                  }}
+                  placeholder="Start typing your city…"
+                  className="input pl-9 pr-9"
+                  autoComplete="off"
+                />
+                {searching && (
+                  <Loader className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-primary-500 animate-spin" />
+                )}
+                {selectedPlace && !searching && (
+                  <Check className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-500" />
+                )}
+              </div>
+
+              {/* Suggestions dropdown */}
+              {suggestions.length > 0 && !selectedPlace && (
+                <ul className="absolute z-20 mt-1 w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto animate-fade-in">
+                  {suggestions.map((s) => (
+                    <li key={`${s.lat},${s.lng}`}>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectSuggestion(s)}
+                        className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors flex items-start gap-2"
+                      >
+                        <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                        <span className="truncate">{s.label}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
             <button
               onClick={handleSaveManual}
-              disabled={loading || !manualCity.trim()}
-              className="btn-primary w-full cursor-pointer py-2.5 flex items-center justify-center gap-2"
+              disabled={loading || !selectedPlace}
+              className="btn-primary w-full cursor-pointer py-2.5 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <Loader className="w-5 h-5 animate-spin" />
@@ -215,12 +303,12 @@ const LocationPicker = ({ location, onUpdate }) => {
               )}
             </button>
             {location?.city && (
-                <button 
-                    onClick={() => setManualMode(false)}
-                    className="w-full py-1 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
-                >
-                    Cancel
-                </button>
+              <button
+                onClick={() => setManualMode(false)}
+                className="w-full py-1 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
             )}
           </div>
         </div>
