@@ -257,7 +257,7 @@ const AppRoutes = () => {
 
         {/* Protected routes (requires login) */}
         <Route path="/complete-profile" element={<PrivateRoute><CompleteProfile /></PrivateRoute>} />
-        <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
+        <Route path="/profile" element={<CompleteProfileRoute><Profile /></CompleteProfileRoute>} />
 
         {/* Protected routes (requires complete profile) */}
         <Route path="/browse" element={<CompleteProfileRoute><Browse /></CompleteProfileRoute>} />

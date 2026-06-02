@@ -160,6 +160,14 @@ const Profile = () => {
       return;
     }
 
+    // Same rule as profile creation (CompleteProfile): a non-empty bio of at
+    // least 10 chars. Without this, clearing the bio in edit mode silently
+    // flips the profile to "incomplete" (the backend accepts an empty bio).
+    if (!formData.biography || formData.biography.trim().length < 10) {
+      setError('Please write at least 10 characters about yourself');
+      return;
+    }
+
     setSaving(true);
     setError('');
     setSuccess('');
@@ -402,7 +410,6 @@ const Profile = () => {
                       onChange={handleInputChange}
                       className="input"
                     >
-                      <option value="">Select...</option>
                       <option value="male">Man</option>
                       <option value="female">Woman</option>
                       <option value="other">Other</option>
