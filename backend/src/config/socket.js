@@ -140,15 +140,6 @@ const updateUserOnlineStatus = async (userId, isOnline) => {
 };
 
 /**
- * Check if a user is currently online
- * @param {number} userId 
- * @returns {boolean}
- */
-export const isUserOnline = (userId) => {
-  return connectedUsers.has(userId) && connectedUsers.get(userId).size > 0;
-};
-
-/**
  * Send notification to a specific user
  * @param {Object} io - Socket.io instance
  * @param {number} userId - Target user ID
@@ -216,14 +207,6 @@ export const sendNotification = async (io, userId, type, data) => {
   } catch (error) {
     console.error('Error in sendNotification:', error);
   }
-};
-
-/**
- * Get all connected user IDs
- * @returns {Array<number>}
- */
-export const getConnectedUserIds = () => {
-  return Array.from(connectedUsers.keys());
 };
 
 export const sendMessagesRead = (io, conversationId, readerId, senderId) => {

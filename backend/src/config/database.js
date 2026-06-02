@@ -90,15 +90,6 @@ export const queryAll = async (text, params = []) => {
 };
 
 /**
- * Get a client from pool for transactions
- * @returns {Promise<Object>} Pool client
- */
-export const getClient = async () => {
-  const client = await pool.connect();
-  return client;
-};
-
-/**
  * Execute multiple queries in a transaction
  * @param {Function} callback - Async function receiving client
  * @returns {Promise<any>} Result of callback

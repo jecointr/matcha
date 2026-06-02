@@ -489,43 +489,6 @@ router.get('/unread-count', async (req, res) => {
   }
 });
 
-router.put('/:conversationId/read', async (req, res) => {
-  try {
-    const userId = req.userId;
-    const { conversationId } = req.params;
-
-    // 1. Verify user is part of conversation AND get the other user ID
-    const conversation = await queryOne(
-      `SELECT id, 
-       CASE WHEN user1_id = $2 THEN user2_id ELSE user1_id END as other_user_id
-       FROM conversations 
-       WHERE id = $1 AND (user1_id = $2 OR user2_id = $2)`,
-      [conversationId, userId]
-    );
-
-    if (!conversation) {
-      return res.status(404).json({ error: 'Conversation not found' });
-    }
-
-    // 2. Update DB
-    await query(`
-      UPDATE messages 
-      SET is_read = true 
-      WHERE conversation_id = $1 AND sender_id != $2 AND is_read = false
-    `, [conversationId, userId]);
-
-    const io = req.app.get('io');
-    // Notify the OTHER user (the message author) that their messages were read
-    sendMessagesRead(io, parseInt(conversationId), userId, conversation.other_user_id);
-
-    res.json({ message: 'Messages marked as read' });
-
-  } catch (error) {
-    console.error('Mark read error:', error);
-    res.status(500).json({ error: 'Failed to mark messages as read' });
-  }
-});
-
 /**
  * POST /api/chat/messages/:messageId/react
  * Toggle reaction on a message

@@ -98,11 +98,6 @@ export const notificationAPI = {
   delete: (notificationId) => api.delete(`/notifications/${notificationId}`)
 };
 
-export const tagsAPI = {
-  getAll: () => api.get('/tags'),
-  search: (query) => api.get('/tags/search', { params: { q: query } })
-};
-
 export const eventAPI = {
   create: (data) => api.post('/events', data),
   getByUser: (targetId) => api.get(`/events/${targetId}`),

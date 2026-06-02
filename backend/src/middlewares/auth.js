@@ -44,38 +44,6 @@ export const authenticate = async (req, res, next) => {
 };
 
 /**
- * Optional authentication middleware
- * Attaches user if token exists, but doesn't require it
- */
-export const optionalAuth = async (req, res, next) => {
-  try {
-    const authHeader = req.headers.authorization;
-    
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.split(' ')[1];
-      const decoded = verifyToken(token);
-      
-      if (decoded) {
-        const user = await queryOne(
-          `SELECT id, email, username, first_name, last_name, is_verified, is_profile_complete
-           FROM users WHERE id = $1`,
-          [decoded.userId]
-        );
-        
-        if (user) {
-          req.user = user;
-          req.userId = user.id;
-        }
-      }
-    }
-    
-    next();
-  } catch (error) {
-    next();
-  }
-};
-
-/**
  * Require verified email middleware
  * Must be used after authenticate middleware
  */
