@@ -4,7 +4,7 @@ import { profileAPI } from '../services/api';
 import { Loader, Ban, ArrowLeft, MapPin, Star, ShieldOff } from 'lucide-react';
 import { Alert } from '../components/ui/Input';
 
-import { API_URL } from '../config';
+import { getPhotoUrl } from '../utils/format';
 
 const Blocked = () => {
   const [blocked, setBlocked] = useState([]);
@@ -40,10 +40,6 @@ const Blocked = () => {
     }
   };
 
-  const getPhotoUrl = (url) => {
-    if (!url) return null;
-    return url.startsWith('http') ? url : `${API_URL.replace('/api', '')}${url}`;
-  };
 
   if (loading) {
     return (

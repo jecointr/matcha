@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 
 import { API_URL } from '../config';
+import { calculateAge } from '../utils/format';
 
 // Minimum number of interests, kept in sync with the backend (users.js MIN_TAGS)
 // and the profile-creation flow so editing can't drop a profile below it.
@@ -235,17 +236,6 @@ const Profile = () => {
     return null;
   };
 
-  const calculateAge = (birthDate) => {
-    if (!birthDate) return null;
-    const today = new Date();
-    const birth = new Date(birthDate);
-    let age = today.getFullYear() - birth.getFullYear();
-    const m = today.getMonth() - birth.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
-      age--;
-    }
-    return age;
-  };
 
   if (loading) {
     return (

@@ -13,7 +13,7 @@ import EventModal from '../components/chat/EventModal';
 import { useCall } from '../context/CallContext';
 import { useToast, useConfirm } from '../context/FeedbackContext';
 
-import { API_URL } from '../config';
+import { getPhotoUrl } from '../utils/format';
 
 const Chat = () => {
   const navigate = useNavigate();
@@ -546,10 +546,6 @@ const Chat = () => {
     return d.toLocaleDateString();
   };
 
-  const getPhotoUrl = (url) => {
-    if (!url) return null;
-    return url.startsWith('http') ? url : `${API_URL.replace('/api', '')}${url}`;
-  };
 
   const selectConversation = (conv) => {
     setActiveConversation(conv);

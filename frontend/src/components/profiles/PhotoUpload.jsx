@@ -6,7 +6,7 @@ import { userAPI } from '../../services/api';
 import { useToast, useConfirm } from '../../context/FeedbackContext';
 import getCroppedImg from '../../utils/canvasUtils';
 
-import { API_URL } from '../../config';
+import { getPhotoUrl as buildPhotoUrl } from '../../utils/format';
 
 const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
   const toast = useToast();
@@ -116,10 +116,6 @@ const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
     }
   };
 
-  const getPhotoUrl = (photo) => {
-    const url = photo.url || `/uploads/${photo.filename}`;
-    return url.startsWith('http') ? url : `${API_URL.replace('/api', '')}${url}`;
-  };
 
   return (
     <div className="transition-colors duration-200">
@@ -144,7 +140,7 @@ const PhotoUpload = ({ photos = [], onUpdate, maxPhotos = 5 }) => {
         {photos.map((photo) => (
           <div key={photo.id} className="relative aspect-square group">
             <img
-              src={getPhotoUrl(photo)}
+              src={buildPhotoUrl(photo.url || `/uploads/${photo.filename}`)}
               alt="Profile photo"
               className="w-full h-full object-cover rounded-lg shadow-sm border dark:border-gray-800 transition-colors"
             />

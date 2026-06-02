@@ -1,13 +1,9 @@
 import { Link } from 'react-router-dom';
 import { MapPin, Heart, Star, Hash, Circle } from 'lucide-react';
 
-import { API_URL } from '../../config';
+import { getPhotoUrl } from '../../utils/format';
 
 const ProfileCard = ({ profile, onLike, onUnlike, compact = false }) => {
-  const getPhotoUrl = (url) => {
-    if (!url) return null;
-    return url.startsWith('http') ? url : `${API_URL.replace('/api', '')}${url}`;
-  };
 
   const isConnected = profile.iLiked && profile.likedMe;
 

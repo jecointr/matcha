@@ -7,7 +7,7 @@ import {
   Loader, Trash2
 } from 'lucide-react';
 
-import { API_URL } from '../config';
+import { getPhotoUrl } from '../utils/format';
 
 const Notifications = () => {
   const { socket, clearUnreadNotifications } = useSocket();
@@ -111,10 +111,6 @@ const Notifications = () => {
     return d.toLocaleDateString();
   };
 
-  const getPhotoUrl = (url) => {
-    if (!url) return null;
-    return url.startsWith('http') ? url : `${API_URL.replace('/api', '')}${url}`;
-  };
 
   if (loading) {
     return (

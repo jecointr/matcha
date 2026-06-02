@@ -1,13 +1,9 @@
 import { useCall } from '../../context/CallContext';
 import { PhoneOff, Phone, PhoneIncoming, Mic, MicOff, Video, VideoOff } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { API_URL } from '../../config';
+import { getPhotoUrl } from '../../utils/format';
 import { startRingback, startRingtone } from '../../utils/callSounds';
 
-const getPhotoUrl = (url) => {
-  if (!url) return null;
-  return url.startsWith('http') ? url : `${API_URL.replace('/api', '')}${url}`;
-};
 
 const Avatar = ({ otherUser, size = 'w-28 h-28', pulse = true }) =>
   otherUser?.picture ? (

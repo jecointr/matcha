@@ -6,6 +6,7 @@ import { Button, Alert } from '../components/ui/Input';
 import PhotoUpload from '../components/profiles/PhotoUpload';
 import TagSelect from '../components/profiles/TagSelect';
 import LocationPicker from '../components/profiles/LocationPicker';
+import { calculateAge } from '../utils/format';
 import { User, ChevronRight, ChevronLeft, Check } from 'lucide-react';
 
 // Must stay in sync with MIN_TAGS on the backend (users.js)
@@ -60,17 +61,6 @@ const CompleteProfile = () => {
   }, []);
 
   // Calculate age from birth date
-  const calculateAge = (birthDate) => {
-    if (!birthDate) return null;
-    const today = new Date();
-    const birth = new Date(birthDate);
-    let age = today.getFullYear() - birth.getFullYear();
-    const m = today.getMonth() - birth.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
-      age--;
-    }
-    return age;
-  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;

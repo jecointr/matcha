@@ -4,7 +4,7 @@ import { matchAPI, profileAPI } from '../services/api';
 import { Loader, Eye, ArrowLeft, MapPin, Star, Circle } from 'lucide-react';
 import { Alert } from '../components/ui/Input';
 
-import { API_URL } from '../config';
+import { getPhotoUrl } from '../utils/format';
 
 const Visitors = () => {
   const [visitors, setVisitors] = useState([]);
@@ -42,10 +42,6 @@ const Visitors = () => {
     return d.toLocaleDateString();
   };
 
-  const getPhotoUrl = (url) => {
-    if (!url) return null;
-    return url.startsWith('http') ? url : `${API_URL.replace('/api', '')}${url}`;
-  };
 
   if (loading) {
     return (

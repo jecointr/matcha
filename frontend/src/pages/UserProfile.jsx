@@ -8,7 +8,7 @@ import {
   Flag, Ban, ChevronLeft, ChevronRight, Hash, Loader, X
 } from 'lucide-react';
 
-import { API_URL } from '../config';
+import { getPhotoUrl } from '../utils/format';
 
 const UserProfile = () => {
   const { userId } = useParams();
@@ -112,10 +112,6 @@ const UserProfile = () => {
     }
   };
 
-  const getPhotoUrl = (url) => {
-    if (!url) return null;
-    return url.startsWith('http') ? url : `${API_URL.replace('/api', '')}${url}`;
-  };
 
   const formatLastSeen = (lastSeen) => {
     if (!lastSeen) return 'Unknown';
