@@ -10,7 +10,7 @@ import TagSelect from '../components/profiles/TagSelect';
 import LocationPicker from '../components/profiles/LocationPicker';
 import { 
   User, Camera, MapPin, Heart, Edit2, Save, X, 
-  Calendar, Star, Eye, ThumbsUp, Settings, Ban
+  Calendar, Eye, ThumbsUp, Settings, Ban
 } from 'lucide-react';
 
 import { API_URL } from '../config';
@@ -284,9 +284,6 @@ const Profile = () => {
                 <User className="w-16 h-16 text-gray-400 dark:text-gray-500" />
               </div>
             )}
-            <div className="absolute -bottom-1 -right-1 bg-primary-500 text-white p-2 rounded-full shadow">
-              <Star className="w-4 h-4" fill="currentColor" />
-            </div>
           </div>
 
           {/* Basic info */}
