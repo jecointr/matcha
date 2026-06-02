@@ -442,8 +442,11 @@ router.get('/map', async (req, res) => {
             WHERE (b.blocker_id = $3 AND b.blocked_id = u.id) 
                OR (b.blocker_id = u.id AND b.blocked_id = $3)
         )
+      -- No cap: the dataset is bounded (seeded profiles) and small enough to return
+      -- whole. At real scale this should NOT become a bigger LIMIT but a
+      -- viewport/bounding-box query — fetch only the users visible in the current
+      -- map view (+ optional server-side clustering at low zoom).
       ORDER BY distance ASC
-      LIMIT 200 -- On limite pour ne pas faire laguer la map si trop d'users
     `, [userLat, userLon, userId]);
 
     res.json({ users });

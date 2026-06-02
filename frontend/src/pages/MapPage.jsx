@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import MarkerClusterGroup from 'react-leaflet-cluster';
 import { Link } from 'react-router-dom';
 import { profileAPI, userAPI } from '../services/api';
 import { API_URL } from '../config';
 import { Loader, MapPin, Navigation } from 'lucide-react';
 import { useToast } from '../context/FeedbackContext';
 import 'leaflet/dist/leaflet.css';
+// react-leaflet-cluster v4 no longer auto-imports its CSS — required manually.
+import 'react-leaflet-cluster/dist/assets/MarkerCluster.css';
+import 'react-leaflet-cluster/dist/assets/MarkerCluster.Default.css';
 import L from 'leaflet';
 
 // Fix for the default Leaflet icons
@@ -142,10 +146,12 @@ const MapPage = () => {
           </Popup>
         </Marker>
 
-        {/* Marqueurs des autres utilisateurs */}
+        {/* Marqueurs des autres utilisateurs — regroupés en clusters (se scindent au zoom).
+            chunkedLoading: ajout des marqueurs par lots pour rester fluide sur un gros volume. */}
+        <MarkerClusterGroup chunkedLoading>
         {users.map((user) => (
-          <Marker 
-            key={user.id} 
+          <Marker
+            key={user.id}
             position={[user.latitude, user.longitude]}
           >
             <Popup className="custom-popup">
@@ -171,6 +177,7 @@ const MapPage = () => {
             </Popup>
           </Marker>
         ))}
+        </MarkerClusterGroup>
       </MapContainer>
     </div>
   );
