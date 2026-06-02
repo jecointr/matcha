@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate, Link, useBlocker } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast, useConfirm } from '../context/FeedbackContext';
 import { userAPI } from '../services/api';
@@ -51,6 +51,20 @@ const Profile = () => {
     loadProfile();
   }, []);
 
+  // Warn before leaving (refresh / tab close / external URL) with unsaved edits.
+  // In-app navigation is handled separately by useBlocker (see below).
+  useEffect(() => {
+    if (!editMode) return;
+    const handler = (e) => {
+      if (isDirty()) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [editMode, formData, tags, location, profile]);
+
   const loadProfile = async () => {
     try {
       const userData = await refreshUser();
@@ -85,6 +99,54 @@ const Profile = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  // Same set of tag ids (order-independent)?
+  const sameTagIds = (a, b) => {
+    const x = (a || []).map(t => t.id).sort((m, n) => m - n);
+    const y = (b || []).map(t => t.id).sort((m, n) => m - n);
+    return x.length === y.length && x.every((id, i) => id === y[i]);
+  };
+
+  // Are there unsaved edits vs the last-saved profile? (formData, tags, location
+  // all only persist on Save.)
+  const isDirty = () => {
+    if (!profile) return false;
+    const orig = {
+      firstName: profile.firstName || '',
+      lastName: profile.lastName || '',
+      email: profile.email || '',
+      gender: profile.gender || '',
+      sexualPreference: profile.sexualPreference || 'both',
+      birthDate: profile.birthDate?.split('T')[0] || '',
+      biography: profile.biography || ''
+    };
+    const formChanged = Object.keys(orig).some(k => formData[k] !== orig[k]);
+    const tagsChanged = !sameTagIds(tags, profile.tags);
+    const locationChanged = JSON.stringify(location ?? null) !== JSON.stringify(profile.location ?? null);
+    return formChanged || tagsChanged || locationChanged;
+  };
+
+  // Block in-app navigation (Link clicks, back/forward) while editing with
+  // unsaved changes, and ask for confirmation. Available because the app uses a
+  // data router (createBrowserRouter).
+  const blocker = useBlocker(() => editMode && isDirty());
+  const promptingRef = useRef(false);
+  useEffect(() => {
+    if (blocker.state !== 'blocked' || promptingRef.current) return;
+    promptingRef.current = true;
+    (async () => {
+      const ok = await confirm({
+        title: 'Discard changes?',
+        message: 'You have unsaved changes. They will be lost if you leave this page.',
+        confirmText: 'Leave',
+        cancelText: 'Keep editing',
+        danger: true
+      });
+      promptingRef.current = false;
+      if (ok) blocker.proceed();
+      else blocker.reset();
+    })();
+  }, [blocker]);
+
   const handleSave = async () => {
     setSaving(true);
     setError('');
@@ -115,7 +177,18 @@ const Profile = () => {
     }
   };
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
+    // Guard against losing unsaved edits.
+    if (isDirty()) {
+      const ok = await confirm({
+        title: 'Discard changes?',
+        message: 'You have unsaved changes. They will be lost.',
+        confirmText: 'Discard',
+        cancelText: 'Keep editing',
+        danger: true
+      });
+      if (!ok) return;
+    }
     // Reset form data
     setFormData({
       firstName: profile.firstName || '',
@@ -126,6 +199,10 @@ const Profile = () => {
       birthDate: profile.birthDate?.split('T')[0] || '',
       biography: profile.biography || ''
     });
+    // Revert edits that live outside formData, otherwise the view keeps showing
+    // the unsaved changes as if they had been saved.
+    setTags(profile.tags || []);
+    setLocation(profile.location || null);
     setEditMode(false);
     setError('');
   };
