@@ -4,7 +4,7 @@ import { matchAPI, profileAPI } from '../services/api';
 import { Loader, Eye, ArrowLeft, MapPin, Star, Circle } from 'lucide-react';
 import { Alert } from '../components/ui/Input';
 
-import { getPhotoUrl } from '../utils/format';
+import { getPhotoUrl, timeAgo } from '../utils/format';
 
 const Visitors = () => {
   const [visitors, setVisitors] = useState([]);
@@ -27,20 +27,6 @@ const Visitors = () => {
     }
   };
 
-  const formatDate = (date) => {
-    const d = new Date(date);
-    const now = new Date();
-    const diffMs = now - d;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return d.toLocaleDateString();
-  };
 
 
   if (loading) {
@@ -127,7 +113,7 @@ const Visitors = () => {
               {/* Visit time */}
               <div className="text-right">
                 <div className="text-sm text-gray-500 dark:text-gray-400 transition-colors">
-                  {formatDate(visitor.visitedAt)}
+                  {timeAgo(visitor.visitedAt)}
                 </div>
                 <div className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 mt-1 transition-colors">
                   <Eye className="w-3 h-3" />

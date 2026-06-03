@@ -7,7 +7,7 @@ import {
   Loader, Trash2
 } from 'lucide-react';
 
-import { getPhotoUrl } from '../utils/format';
+import { getPhotoUrl, timeAgo } from '../utils/format';
 
 const Notifications = () => {
   const { socket, clearUnreadNotifications } = useSocket();
@@ -96,20 +96,6 @@ const Notifications = () => {
     }
   };
 
-  const formatTime = (date) => {
-    const d = new Date(date);
-    const now = new Date();
-    const diffMs = now - d;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return d.toLocaleDateString();
-  };
 
 
   if (loading) {
@@ -176,7 +162,7 @@ const Notifications = () => {
                     {notification.message}
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 transition-colors">
-                    {formatTime(notification.createdAt)}
+                    {timeAgo(notification.createdAt)}
                   </p>
                 </div>
 
