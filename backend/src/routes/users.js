@@ -422,57 +422,6 @@ router.put('/tags', async (req, res) => {
 });
 
 /**
- * POST /api/users/tags
- * Create a new tag (if it doesn't exist) and add to user
- */
-router.post('/tags', async (req, res) => {
-  try {
-    const { name } = req.body;
-
-    if (!name || typeof name !== 'string') {
-      return res.status(400).json({ error: 'Tag name required' });
-    }
-
-    // Clean and validate tag name
-    const cleanName = name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 30);
-
-    if (cleanName.length < 2) {
-      return res.status(400).json({ error: 'Tag must be at least 2 characters' });
-    }
-
-    // Check user's current tag count
-    const tagCount = await queryOne(
-      'SELECT COUNT(*) as count FROM user_tags WHERE user_id = $1',
-      [req.userId]
-    );
-
-    if (parseInt(tagCount.count) >= 10) {
-      return res.status(400).json({ error: 'Maximum 10 tags allowed' });
-    }
-
-    // Insert tag if not exists, then link to user
-    const tag = await queryOne(
-      `INSERT INTO tags (name) VALUES ($1)
-       ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
-       RETURNING id, name`,
-      [cleanName]
-    );
-
-    // Link to user
-    await query(
-      'INSERT INTO user_tags (user_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-      [req.userId, tag.id]
-    );
-
-    res.status(201).json({ tag });
-
-  } catch (error) {
-    console.error('Create tag error:', error);
-    res.status(500).json({ error: 'Failed to create tag' });
-  }
-});
-
-/**
  * Helper: Check and update profile completion status
  */
 async function updateProfileComplete(userId) {

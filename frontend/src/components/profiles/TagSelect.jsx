@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Hash } from 'lucide-react';
+import { X, Hash } from 'lucide-react';
 import { userAPI } from '../../services/api';
 
 const TagSelect = ({ selectedTags = [], onUpdate, maxTags = 10 }) => {
   const [availableTags, setAvailableTags] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -21,20 +20,19 @@ const TagSelect = ({ selectedTags = [], onUpdate, maxTags = 10 }) => {
     loadTags();
   }, []);
 
+  // Users can only pick from the curated catalogue — no free-form tag creation
+  // (that would pollute the shared tags table for everyone).
   const filteredTags = availableTags.filter(tag =>
     tag.name.includes(searchQuery.toLowerCase()) &&
     !selectedTags.find(t => t.id === tag.id)
   );
-
-  const canCreateTag = searchQuery.length >= 2 &&
-    !availableTags.find(t => t.name === searchQuery.toLowerCase()) &&
-    selectedTags.length < maxTags;
 
   const handleSelectTag = (tag) => {
     if (selectedTags.length >= maxTags) {
       setError(`Maximum ${maxTags} tags allowed`);
       return;
     }
+    setError('');
     onUpdate([...selectedTags, tag]);
     setSearchQuery('');
     setShowDropdown(false);
@@ -42,35 +40,6 @@ const TagSelect = ({ selectedTags = [], onUpdate, maxTags = 10 }) => {
 
   const handleRemoveTag = (tagId) => {
     onUpdate(selectedTags.filter(t => t.id !== tagId));
-  };
-
-  const handleCreateTag = async () => {
-    if (!canCreateTag) return;
-
-    setLoading(true);
-    setError('');
-
-    try {
-      const response = await userAPI.createTag(searchQuery);
-      const newTag = response.data.tag;
-      
-      setAvailableTags(prev => [...prev, newTag]);
-      
-      onUpdate([...selectedTags, newTag]);
-      setSearchQuery('');
-      setShowDropdown(false);
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to create tag');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && canCreateTag) {
-      e.preventDefault();
-      handleCreateTag();
-    }
   };
 
   return (
@@ -115,28 +84,15 @@ const TagSelect = ({ selectedTags = [], onUpdate, maxTags = 10 }) => {
               setShowDropdown(true);
             }}
             onFocus={() => setShowDropdown(true)}
-            onKeyDown={handleKeyDown}
-            placeholder="Search or create tags..."
+            placeholder="Search interests..."
             className="input"
           />
 
           {/* Dropdown - dark mode support and adapted shadows */}
           {showDropdown && (searchQuery || filteredTags.length > 0) && (
-            <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg shadow-xl max-h-48 overflow-auto transition-colors duration-200">
-              {/* Create new tag option */}
-              {canCreateTag && (
-                <button
-                  onClick={handleCreateTag}
-                  disabled={loading}
-                  className="w-full px-4 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-primary-600 dark:text-primary-400 font-medium cursor-pointer transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  Create "#{searchQuery}"
-                </button>
-              )}
-
+            <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg shadow-xl max-h-72 overflow-auto transition-colors duration-200">
               {/* Existing tags */}
-              {filteredTags.slice(0, 10).map(tag => (
+              {filteredTags.map(tag => (
                 <button
                   key={tag.id}
                   onClick={() => handleSelectTag(tag)}
@@ -147,9 +103,9 @@ const TagSelect = ({ selectedTags = [], onUpdate, maxTags = 10 }) => {
                 </button>
               ))}
 
-              {filteredTags.length === 0 && !canCreateTag && searchQuery && (
+              {filteredTags.length === 0 && searchQuery && (
                 <div className="px-4 py-2 text-gray-500 dark:text-gray-400 text-sm">
-                  No matching tags found
+                  No matching interest found
                 </div>
               )}
             </div>

@@ -244,7 +244,19 @@ INSERT INTO tags (name) VALUES
     ('hiking'), ('dancing'), ('technology'), ('fashion'), ('sports'),
     ('nature'), ('animals'), ('coffee'), ('wine'), ('vegan'),
     ('foodie'), ('netflix'), ('beach'), ('mountains'), ('science'),
-    ('politics'), ('spirituality'), ('meditation'), ('running'), ('cycling')
+    ('politics'), ('spirituality'), ('meditation'), ('running'), ('cycling'),
+    ('gym'), ('swimming'), ('football'), ('basketball'), ('tennis'),
+    ('climbing'), ('skiing'), ('surfing'), ('boxing'), ('pilates'),
+    ('guitar'), ('piano'), ('singing'), ('concerts'), ('festivals'),
+    ('podcasts'), ('karaoke'), ('writing'), ('poetry'), ('theatre'),
+    ('museums'), ('painting'), ('baking'), ('sushi'), ('tea'),
+    ('cocktails'), ('whisky'), ('chocolate'), ('brunch'), ('dogs'),
+    ('cats'), ('gardening'), ('plants'), ('diy'), ('volunteering'),
+    ('coding'), ('startups'), ('crypto'), ('design'), ('anime'),
+    ('manga'), ('comics'), ('boardgames'), ('chess'), ('esports'),
+    ('camping'), ('roadtrips'), ('backpacking'), ('sailing'), ('fishing'),
+    ('astronomy'), ('languages'), ('history'), ('philosophy'), ('psychology'),
+    ('comedy'), ('tattoos'), ('sneakers'), ('sustainability')
 ON CONFLICT (name) DO NOTHING;
 
 -- Reactions table
