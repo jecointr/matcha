@@ -115,10 +115,10 @@ const VideoCallModal = () => {
               <span className="text-sm text-gray-300">Decline</span>
             </button>
 
-            {/* Answer */}
+            {/* Answer — camera icon for a video call, phone icon for an audio call */}
             <button onClick={answerCall} className="flex flex-col items-center gap-2 group cursor-pointer">
               <span className="bg-green-500 group-hover:bg-green-600 text-white p-5 rounded-full shadow-lg transition transform group-hover:scale-105 animate-bounce">
-                <PhoneIncoming className="w-7 h-7" />
+                {isVideoCall ? <Video className="w-7 h-7" /> : <PhoneIncoming className="w-7 h-7" />}
               </span>
               <span className="text-sm text-gray-300">Answer</span>
             </button>
