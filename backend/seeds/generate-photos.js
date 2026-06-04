@@ -1,6 +1,6 @@
 /**
  * Generate placeholder photos for seeded profiles
- * Uses DiceBear API (v9) with fallback to UI Avatars
+ * Uses randomuser.me realistic portraits (gender-consistent) with fallback to UI Avatars
  * Run with: docker exec -it matcha_backend node seeds/generate-photos.js
  */
 
@@ -76,21 +76,15 @@ const downloadImage = (url, filepath) => {
   });
 };
 
-const getDiceBearUrl = (seed, gender) => {
-  const style = 'avataaars';
-  const safeSeed = encodeURIComponent(seed);
-  
-  let url = `https://api.dicebear.com/9.x/${style}/jpg?seed=${safeSeed}&size=400`;
-
-  if (gender === 'male') {
-    url += '&facialHairProbability=100';
-    url += '&top=shortFlat,shortRound,theCaesar,shortCurly'; 
-  } else {
-    url += '&facialHairProbability=0';
-    url += '&top=straight01,straight02,curvy,longButNotTooLong,bob';
-  }
-  
-  return url;
+// Realistic stock portraits from randomuser.me: 100 photos per gender (indexed 0-99).
+// We key the index off the user id so re-running the seed is stable, and pick the
+// folder from the user's gender ('other' falls back to a deterministic split).
+const getPortraitUrl = (id, gender) => {
+  const folder = gender === 'female' ? 'women'
+    : gender === 'male' ? 'men'
+    : (id % 2 === 0 ? 'men' : 'women');
+  const index = id % 100;
+  return `https://randomuser.me/api/portraits/${folder}/${index}.jpg`;
 };
 
 const getFallbackUrl = (name) => {
@@ -128,10 +122,10 @@ async function generatePhotos() {
         const filepath = path.join(UPLOAD_DIR, filename);
         
         try {
-            const avatarUrl = getDiceBearUrl(user.username, user.gender);
+            const avatarUrl = getPortraitUrl(user.id, user.gender);
             await downloadImage(avatarUrl, filepath);
         } catch (err) {
-            // console.log(`   ⚠️ DiceBear failed for ${user.username} (${err.message}), using fallback...`);
+            // console.log(`   ⚠️ randomuser.me failed for ${user.username} (${err.message}), using fallback...`);
             const fallbackUrl = getFallbackUrl(user.first_name || user.username);
             await downloadImage(fallbackUrl, filepath);
         }
