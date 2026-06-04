@@ -135,7 +135,7 @@ router.get('/browse', async (req, res) => {
         orderBy = `u.birth_date ${order === 'ASC' ? 'DESC' : 'ASC'}`;
         break;
       case 'tags':
-        orderBy = `common_tags ${order}`;
+        orderBy = `${tagsCountQuery} ${order}`;
         break;
       case 'match':
       default:
