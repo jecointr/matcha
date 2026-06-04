@@ -144,8 +144,8 @@ router.get('/browse', async (req, res) => {
     }
 
     // Main query
-    const sql = `
-      SELECT 
+    const selectBody = `
+      SELECT
         u.id, u.username, u.first_name, u.last_name, u.gender,
         u.biography, u.birth_date, u.city, u.country, u.fame_rating,
         u.is_online, u.last_seen,
@@ -157,32 +157,21 @@ router.get('/browse', async (req, res) => {
         EXISTS (SELECT 1 FROM likes WHERE liker_id = u.id AND liked_id = $1) as liked_me
       FROM users u
       WHERE ${conditions.join(' AND ')}
+    `;
+
+    const sql = `
+      ${selectBody}
       ORDER BY ${orderBy}
       LIMIT $${++paramCount} OFFSET $${++paramCount}
     `;
 
-    params.push(parseInt(limit), offset);
+    // Count over the EXACT same filtered set (see /search for why we wrap instead of
+    // slicing params: a SELECT-only param like distance lat/lng would be passed but
+    // unreferenced in a bare COUNT → "could not determine data type of parameter $N").
+    const countSql = `SELECT COUNT(*) as total FROM (${selectBody}) sub`;
+    const countResult = await queryOne(countSql, params);
 
-    const profiles = await queryAll(sql, params);
-
-    const countSql = `
-      SELECT COUNT(*) as total
-      FROM users u
-      WHERE ${conditions.join(' AND ')}
-    `;
-    let maxParamIndex = 1;
-    const paramRegex = /\$(\d+)/g;
-    conditions.forEach(condition => {
-      let match;
-      while ((match = paramRegex.exec(condition)) !== null) {
-        const index = parseInt(match[1]);
-        if (index > maxParamIndex) maxParamIndex = index;
-      }
-    });
-
-    const countParams = params.slice(0, maxParamIndex);
-    
-    const countResult = await queryOne(countSql, countParams);
+    const profiles = await queryAll(sql, [...params, parseInt(limit), offset]);
 
     // Get tags for each profile
     const profileIds = profiles.map(p => p.id);
@@ -253,7 +242,26 @@ router.get('/search', async (req, res) => {
          OR (b.blocker_id = u.id AND b.blocked_id = $1)
     )`);
 
-    // Gender filter (search can override preferences)
+    // Filter by sexual-preference compatibility — SAME rule as /browse, so search
+    // stays within the user's orientation by default (only profiles whose gender the
+    // user is interested in, AND who are interested in the user's gender). Without this,
+    // search leaked every gender regardless of the user's "interested in" setting.
+    // (String literals only → no bound params, so paramCount is untouched.)
+    if (user.gender && user.sexual_preference) {
+      if (user.sexual_preference === 'male') {
+        conditions.push(`u.gender = 'male'`);
+      } else if (user.sexual_preference === 'female') {
+        conditions.push(`u.gender = 'female'`);
+      }
+      if (user.gender === 'male') {
+        conditions.push(`(u.sexual_preference = 'male' OR u.sexual_preference = 'both')`);
+      } else if (user.gender === 'female') {
+        conditions.push(`(u.sexual_preference = 'female' OR u.sexual_preference = 'both')`);
+      }
+    }
+
+    // Optional explicit gender filter — narrows WITHIN the orientation above
+    // (useful for a bisexual user who wants to see only one gender).
     if (gender) {
       params.push(gender);
       conditions.push(`u.gender = $${++paramCount}`);
@@ -303,20 +311,24 @@ router.get('/search', async (req, res) => {
       }
     }
 
-    // Tags filter (must have at least one of the specified tags)
-    let tagsSelect = '0 as common_tags';
+    // Tags filter (must have at least one of the specified tags).
+    // Keep the COUNT as a bare EXPRESSION (commonTagsExpr) so it can be reused both as
+    // the `common_tags` SELECT alias AND inside the ORDER BY math — Postgres rejects a
+    // SELECT alias referenced inside an ORDER BY expression (error 42703).
+    let commonTagsExpr = '0';
     if (tags) {
       const tagIds = tags.split(',').map(t => parseInt(t)).filter(t => !isNaN(t));
       if (tagIds.length > 0) {
         params.push(tagIds);
-        tagsSelect = `(SELECT COUNT(*) FROM user_tags ut WHERE ut.user_id = u.id AND ut.tag_id = ANY($${++paramCount})) as common_tags`;
+        commonTagsExpr = `(SELECT COUNT(*) FROM user_tags ut WHERE ut.user_id = u.id AND ut.tag_id = ANY($${++paramCount}))`;
         conditions.push(`EXISTS (SELECT 1 FROM user_tags ut WHERE ut.user_id = u.id AND ut.tag_id = ANY($${paramCount}))`);
       }
     } else {
-      tagsSelect = `(SELECT COUNT(*) FROM user_tags ut1 
-                     JOIN user_tags ut2 ON ut1.tag_id = ut2.tag_id 
-                     WHERE ut1.user_id = u.id AND ut2.user_id = $1) as common_tags`;
+      commonTagsExpr = `(SELECT COUNT(*) FROM user_tags ut1
+                     JOIN user_tags ut2 ON ut1.tag_id = ut2.tag_id
+                     WHERE ut1.user_id = u.id AND ut2.user_id = $1)`;
     }
+    const tagsSelect = `${commonTagsExpr} as common_tags`;
 
     // Sorting
     let orderBy;
@@ -332,14 +344,14 @@ router.get('/search', async (req, res) => {
         orderBy = `u.birth_date ${order === 'ASC' ? 'DESC' : 'ASC'}`;
         break;
       case 'tags':
-        orderBy = `common_tags ${order}`;
+        orderBy = `${commonTagsExpr} ${order}`;
         break;
       default:
-        orderBy = `(common_tags * 10 + u.fame_rating) DESC`;
+        orderBy = `(${commonTagsExpr} * 10 + u.fame_rating) DESC`;
     }
 
-    const sql = `
-      SELECT 
+    const selectBody = `
+      SELECT
         u.id, u.username, u.first_name, u.last_name, u.gender,
         u.biography, u.birth_date, u.city, u.country, u.fame_rating,
         u.is_online, u.last_seen,
@@ -351,29 +363,22 @@ router.get('/search', async (req, res) => {
         EXISTS (SELECT 1 FROM likes WHERE liker_id = u.id AND liked_id = $1) as liked_me
       FROM users u
       WHERE ${conditions.join(' AND ')}
+    `;
+
+    const sql = `
+      ${selectBody}
       ORDER BY ${orderBy}
       LIMIT $${++paramCount} OFFSET $${++paramCount}
     `;
 
-    params.push(parseInt(limit), offset);
+    // Count over the EXACT same filtered set by wrapping selectBody. Re-deriving param
+    // indexes by hand was fragile: a param used only in the SELECT (e.g. distance
+    // lat/lng) gets passed but is unreferenced in a bare COUNT, and Postgres errors
+    // with "could not determine data type of parameter $N". Wrapping keeps every $N used.
+    const countSql = `SELECT COUNT(*) as total FROM (${selectBody}) sub`;
+    const countResult = await queryOne(countSql, params);
 
-    const profiles = await queryAll(sql, params);
-
-    // Get total count
-    const countSql = `SELECT COUNT(*) as total FROM users u WHERE ${conditions.join(' AND ')}`;
-
-    let maxParamIndex = 1;
-    const paramRegex = /\$(\d+)/g;
-    conditions.forEach(condition => {
-      let match;
-      while ((match = paramRegex.exec(condition)) !== null) {
-        const index = parseInt(match[1]);
-        if (index > maxParamIndex) maxParamIndex = index;
-      }
-    });
-
-    const countParams = params.slice(0, maxParamIndex);
-    const countResult = await queryOne(countSql, countParams);
+    const profiles = await queryAll(sql, [...params, parseInt(limit), offset]);
 
     // Get tags
     const profileIds = profiles.map(p => p.id);
