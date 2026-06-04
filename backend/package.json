@@ -5,18 +5,17 @@
   "main": "src/index.js",
   "type": "module",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "nodemon src/index.js",
-    "seed": "node seeds/generate-profiles.js",
-    "seed:photos": "node seeds/generate-photos.js",
-    "seed:all": "node seeds/generate-profiles.js && node seeds/generate-photos.js",
-    "security:check": "node seeds/security-check.js"
+    "start": "node --env-file-if-exists=../.env src/index.js",
+    "dev": "nodemon --exec 'node --env-file-if-exists=../.env' src/index.js",
+    "seed": "node --env-file-if-exists=../.env seeds/generate-profiles.js",
+    "seed:photos": "node --env-file-if-exists=../.env seeds/generate-photos.js",
+    "seed:all": "npm run seed && npm run seed:photos",
+    "security:check": "node --env-file-if-exists=../.env seeds/security-check.js"
   },
   "dependencies": {
     "axios": "^1.13.2",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
-    "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "express-rate-limit": "^8.2.1",
     "helmet": "^8.1.0",
