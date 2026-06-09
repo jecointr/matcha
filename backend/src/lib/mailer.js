@@ -25,14 +25,13 @@ const transporter = nodemailer.createTransport({
  */
 const sendEmail = async ({ to, subject, html, text }) => {
   try {
-    const info = await transporter.sendMail({
+    await transporter.sendMail({
       from: process.env.MAIL_FROM || '"Matcha" <noreply@matcha.local>',
       to,
       subject,
       text,
       html
     });
-    console.log('Email sent:', info.messageId);
     return true;
   } catch (error) {
     console.error('Email error:', error);

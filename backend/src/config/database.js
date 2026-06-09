@@ -13,10 +13,12 @@ const pool = new Pool({
   connectionTimeoutMillis: 2000,
 });
 
-// Event listeners for debugging
+// A dormant (idle) pooled connection can die on its own — Postgres restart, brief
+// network blip, server-side idle timeout. These are routine. Just log it and let
+// pg transparently open a fresh connection on the next query; killing the whole
+// server (process.exit) over one idle client would drop every active session.
 pool.on('error', (err) => {
-  console.error('Unexpected error on idle client', err);
-  process.exit(-1);
+  console.error('Unexpected error on idle DB client:', err.message);
 });
 
 /**
