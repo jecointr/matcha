@@ -169,9 +169,13 @@ router.put('/location', async (req, res) => {
         return res.status(400).json({ error: 'Invalid longitude' });
       }
 
+      // Only touch location_consent when the caller explicitly sends it.
+      // The map's "Locate me" updates coords without a consent field — passing
+      // null here keeps the existing flag instead of silently resetting it.
+      const consentValue = consent === undefined ? null : consent === true;
       await query(
-        `UPDATE users SET latitude = $1, longitude = $2, location_consent = $3 WHERE id = $4`,
-        [lat, lng, consent === true, req.userId]
+        `UPDATE users SET latitude = $1, longitude = $2, location_consent = COALESCE($3, location_consent) WHERE id = $4`,
+        [lat, lng, consentValue, req.userId]
       );
     }
 

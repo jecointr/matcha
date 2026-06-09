@@ -80,15 +80,25 @@ const LocationPicker = ({ location, onUpdate }) => {
 
   const reverseGeocode = async (lat, lng) => {
     try {
+      // The subject requires GPS positioning "down to their neighborhood", so we
+      // ask Nominatim for building-level detail (zoom=18) and keep the
+      // neighbourhood, not just the city.
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
+        `https://nominatim.openstreetmap.org/reverse?format=json&zoom=18&addressdetails=1&lat=${lat}&lon=${lng}`,
         { headers: { 'Accept-Language': 'en' } }
       );
       const data = await response.json();
+      const addr = data.address || {};
+
+      const neighbourhood =
+        addr.neighbourhood || addr.suburb || addr.quarter || addr.city_district || '';
+      const city =
+        addr.city || addr.town || addr.village || addr.municipality || 'Unknown';
 
       return {
-        city: data.address?.city || data.address?.town || data.address?.village || 'Unknown',
-        country: data.address?.country || 'Unknown'
+        // "Neighbourhood, City" when available, otherwise just the city.
+        city: [neighbourhood, city].filter(Boolean).join(', '),
+        country: addr.country || 'Unknown'
       };
     } catch {
       return { city: 'Unknown', country: 'Unknown' };

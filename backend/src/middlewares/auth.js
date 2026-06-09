@@ -24,7 +24,7 @@ export const authenticate = async (req, res, next) => {
     const user = await queryOne(
       `SELECT id, email, username, first_name, last_name, is_verified, is_profile_complete,
               gender, sexual_preference, biography, birth_date, latitude, longitude,
-              city, country, is_online, fame_rating, created_at
+              city, country, location_consent, is_online, fame_rating, created_at
        FROM users WHERE id = $1`,
       [decoded.userId]
     );

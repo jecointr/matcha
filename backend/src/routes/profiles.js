@@ -440,8 +440,12 @@ router.get('/map', async (req, res) => {
       FROM users u
       WHERE u.id != $3
         AND u.is_profile_complete = true
-        AND u.latitude IS NOT NULL 
+        AND u.latitude IS NOT NULL
         AND u.longitude IS NOT NULL
+        -- Map shows only users who granted precise GPS (location_consent). Users
+        -- with a manual/declared location are never plotted, so no one appears
+        -- at a potentially fake position on this proximity feature.
+        AND u.location_consent = true
         AND NOT EXISTS (
             SELECT 1 FROM blocks b 
             WHERE (b.blocker_id = $3 AND b.blocked_id = u.id) 

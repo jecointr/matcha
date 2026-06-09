@@ -126,8 +126,8 @@ router.post('/login', async (req, res) => {
     const user = await queryOne(
       `SELECT id, email, username, password_hash, first_name, last_name, 
               is_verified, is_profile_complete, gender, sexual_preference,
-              biography, latitude, longitude, city, country, fame_rating
-       FROM users 
+              biography, latitude, longitude, city, country, location_consent, fame_rating
+       FROM users
        WHERE username = $1 OR email = $1`,
       [cleanInput]
     );
@@ -174,7 +174,7 @@ router.post('/login', async (req, res) => {
         gender: user.gender,
         sexualPreference: user.sexual_preference,
         biography: user.biography,
-        location: user.city ? { city: user.city, country: user.country } : null,
+        location: user.city ? { city: user.city, country: user.country, consent: user.location_consent } : null,
         fameRating: user.fame_rating
       }
     });
@@ -433,7 +433,8 @@ router.get('/me', authenticate, async (req, res) => {
           latitude: req.user.latitude,
           longitude: req.user.longitude,
           city: req.user.city,
-          country: req.user.country
+          country: req.user.country,
+          consent: req.user.location_consent
         } : null,
         fameRating: req.user.fame_rating,
         photos: photos.rows,
