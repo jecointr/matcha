@@ -127,7 +127,10 @@ CREATE TABLE IF NOT EXISTS reports (
     reporter_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     reported_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     reason TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    -- One report per (reporter, reported): a user can't spam reports to drive
+    -- another's fame to zero (fame subtracts reports*10). Re-reporting is a no-op.
+    UNIQUE(reporter_id, reported_id)
 );
 
 -- Conversations table (for chat)

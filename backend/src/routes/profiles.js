@@ -9,6 +9,18 @@ const router = Router();
 router.use(authenticate);
 router.use(requireVerified);
 
+// Validate the :userId route param once for every route that uses it (GET profile,
+// like, unlike, report). A non-numeric id used to reach the SQL layer and raise a
+// generic 500 ("integer = text") — now it's a clean 400 before any query runs.
+router.param('userId', (req, res, next, value) => {
+  const id = parseInt(value, 10);
+  if (Number.isNaN(id) || id < 1) {
+    return res.status(400).json({ error: 'Invalid user id' });
+  }
+  req.params.userId = id;
+  next();
+});
+
 /**
  * GET /api/profiles/browse
  * Get suggested profiles based on preferences and matching algorithm
@@ -782,16 +794,19 @@ router.post('/:userId/report', async (req, res) => {
       return res.status(400).json({ error: 'Cannot report yourself' });
     }
 
-    await query(
-      `INSERT INTO reports (reporter_id, reported_id, reason) VALUES ($1, $2, $3)`,
+    // One report per (reporter, reported) — the UNIQUE constraint makes a repeat
+    // report a no-op, so a single user can't stack the reports*10 fame penalty.
+    const inserted = await query(
+      `INSERT INTO reports (reporter_id, reported_id, reason) VALUES ($1, $2, $3)
+       ON CONFLICT (reporter_id, reported_id) DO NOTHING`,
       [currentUserId, userId, reason || 'Fake account']
     );
 
-    // Recompute the reported user's fame through the single source of truth
-    // (updateFameRating), which already subtracts reports*10. A previous ad-hoc
-    // "fame - 5" here was inconsistent with the formula and got silently
-    // overwritten on the user's next view/like, so the real penalty was -10 anyway.
-    await updateFameRating(parseInt(userId));
+    // Only recompute fame on a genuinely new report. Recomputing goes through the
+    // single source of truth (updateFameRating), which already subtracts reports*10.
+    if (inserted.rowCount > 0) {
+      await updateFameRating(parseInt(userId));
+    }
 
     res.json({ message: 'Report submitted' });
 
