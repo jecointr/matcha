@@ -28,7 +28,6 @@ export const initializeSocket = (io) => {
 
   io.on('connection', async (socket) => {
     const userId = socket.userId;
-    console.log(`User ${userId} connected (socket: ${socket.id})`);
 
     // Add user to connected users
     if (!connectedUsers.has(userId)) {
@@ -44,8 +43,6 @@ export const initializeSocket = (io) => {
 
     // Handle disconnection
     socket.on('disconnect', async () => {
-      console.log(`User ${userId} disconnected (socket: ${socket.id})`);
-      
       const userSockets = connectedUsers.get(userId);
       if (userSockets) {
         userSockets.delete(socket.id);
@@ -58,9 +55,19 @@ export const initializeSocket = (io) => {
       }
     });
 
-    // Chat: join conversation room
-    socket.on('join:chat', (conversationId) => {
-      socket.join(`chat:${conversationId}`);
+    // Chat: join conversation room.
+    // Only a participant of the conversation may join its room — reactions are
+    // broadcast to `chat:<id>` (see sendReaction), so an outsider joining could
+    // otherwise eavesdrop on them.
+    socket.on('join:chat', async (conversationId) => {
+      const cid = parseInt(conversationId, 10);
+      if (Number.isNaN(cid)) return;
+      const part = await queryOne(
+        'SELECT 1 FROM conversations WHERE id = $1 AND (user1_id = $2 OR user2_id = $2)',
+        [cid, userId]
+      );
+      if (!part) return;
+      socket.join(`chat:${cid}`);
     });
 
     // Chat: leave conversation room
@@ -104,23 +111,52 @@ export const initializeSocket = (io) => {
 
     // --- WebRTC signaling (audio/video) ---
 
-    // Initiate a call: forward the offer to the target user's personal room
-    socket.on("call:user", ({ userToCall, signalData, fromUser, callType }) => {
-      io.to(`user:${userToCall}`).emit("call:incoming", {
+    // Initiate a call: forward the offer to the target user's personal room.
+    // Two guards: (1) only MATCHED users can call each other — otherwise anyone
+    // could ring/harass a stranger; (2) the caller identity (`from`) is rebuilt
+    // server-side from the authenticated socket, never trusted from the client
+    // payload (a client could spoof another user's name/photo). The `from` shape
+    // ({ id, name, picture }) matches what the frontend expects.
+    socket.on("call:user", async ({ userToCall, signalData, callType }) => {
+      const targetId = parseInt(userToCall, 10);
+      if (Number.isNaN(targetId)) return;
+
+      const matched = await queryOne(`
+        SELECT 1 FROM likes l1
+        JOIN likes l2 ON l1.liked_id = l2.liker_id AND l1.liker_id = l2.liked_id
+        WHERE l1.liker_id = $1 AND l1.liked_id = $2
+      `, [userId, targetId]);
+      if (!matched) return;
+
+      const caller = await queryOne(`
+        SELECT first_name,
+               (SELECT filename FROM photos WHERE user_id = users.id AND is_profile_picture = true LIMIT 1) as profile_picture
+        FROM users WHERE id = $1
+      `, [userId]);
+
+      io.to(`user:${targetId}`).emit("call:incoming", {
         signal: signalData,
-        from: fromUser,
+        from: {
+          id: userId,
+          name: caller?.first_name || 'Someone',
+          picture: caller?.profile_picture ? `/uploads/${caller.profile_picture}` : null
+        },
         callType
       });
     });
 
     // Answer a call: relay the answer back to the caller
     socket.on("call:answer", (data) => {
-      io.to(`user:${data.to}`).emit("call:accepted", data.signal);
+      const to = parseInt(data?.to, 10);
+      if (Number.isNaN(to)) return;
+      io.to(`user:${to}`).emit("call:accepted", data.signal);
     });
 
     // Hang up / decline
     socket.on("call:end", ({ to }) => {
-      io.to(`user:${to}`).emit("call:ended");
+      const target = parseInt(to, 10);
+      if (Number.isNaN(target)) return;
+      io.to(`user:${target}`).emit("call:ended");
     });
   });
 };
@@ -207,16 +243,6 @@ export const sendNotification = async (io, userId, type, data) => {
   } catch (error) {
     console.error('Error in sendNotification:', error);
   }
-};
-
-export const sendMessagesRead = (io, conversationId, readerId, senderId) => {
-  // Notify the user who sent the messages (senderId) that the reader (readerId)
-  // has read everything in this conversation.
-  io.to(`user:${senderId}`).emit('chat:read', {
-    conversationId,
-    readerId,
-    readAt: new Date().toISOString()
-  });
 };
 
 export const sendReaction = (io, conversationId, reactionData) => {

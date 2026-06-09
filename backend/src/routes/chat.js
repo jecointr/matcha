@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { query, queryOne, queryAll } from '../config/database.js';
 import { authenticate, requireVerified } from '../middlewares/auth.js';
-import { sendMessagesRead, sendReaction } from '../config/socket.js';
+import { sendReaction } from '../config/socket.js';
 import xss from 'xss';
 
 const router = Router();
