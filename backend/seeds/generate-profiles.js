@@ -211,10 +211,10 @@ async function seed() {
         // Biography
         const biography = randomElement(BIOGRAPHIES);
 
-        // Fame rating (bell curve distribution)
-        const fameRating = Math.min(100, Math.max(0, 
-          Math.round(50 + (Math.random() - 0.5) * 60)
-        ));
+        // Fame is NOT set here: it is recomputed at the end of the seed from the
+        // real engagement (likes/visits/matches) using the exact same formula as
+        // updateFameRating(). Seeding an arbitrary value would be overwritten by
+        // that formula on the user's first profile view, making fame "drift".
 
         // Insert user
         const userResult = await pool.query(`
@@ -222,14 +222,17 @@ async function seed() {
             email, username, password_hash, first_name, last_name,
             is_verified, is_profile_complete, gender, sexual_preference,
             biography, birth_date, latitude, longitude, city, country,
-            fame_rating, is_online, last_seen
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+            location_consent, fame_rating, is_online, last_seen
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
           RETURNING id
         `, [
           email, username, passwordHash, firstName, lastName,
           true, true, gender, sexualPreference,
           biography, generateBirthDate(), lat, lng, location.city, location.country,
-          fameRating, Math.random() > 0.8, new Date(Date.now() - randomInt(0, 7 * 24 * 60 * 60 * 1000))
+          // Seeded coords (city centroid + jitter) ARE these fictional users'
+          // real positions, so consenting is honest — and it lets them appear on
+          // the precise-GPS-only map.
+          true, 0, Math.random() > 0.8, new Date(Date.now() - randomInt(0, 7 * 24 * 60 * 60 * 1000))
         ]);
 
         const userId = userResult.rows[0].id;
@@ -268,7 +271,10 @@ async function seed() {
     const userIds = usersResult.rows.map(r => r.id);
     
     let likesCreated = 0;
-    const targetLikes = 2000; // Generate ~2000 likes
+    // Higher volume so the recomputed fame (likes*3 + ...) spans a believable
+    // range (some "stars" near 70-90, a long tail lower) instead of collapsing
+    // near 0. Also gives every profile visible likes to interact with.
+    const targetLikes = 9000;
 
     for (let i = 0; i < targetLikes; i++) {
       const likerId = randomElement(userIds);
@@ -293,7 +299,7 @@ async function seed() {
     console.log('\n👀 Generating profile visits...');
     
     let visitsCreated = 0;
-    const targetVisits = 3000;
+    const targetVisits = 5000;
 
     for (let i = 0; i < targetVisits; i++) {
       const visitorId = randomElement(userIds);
@@ -313,6 +319,27 @@ async function seed() {
     }
 
     console.log(`   ✓ Created ${visitsCreated} profile visits`);
+
+    // Recompute fame from real engagement so the stored value MATCHES what the
+    // app computes — same formula as updateFameRating() in routes/profiles.js
+    // (likes*3 + views*0.5 + matches*10 - reports*10, capped 0-100). This keeps
+    // fame stable: viewing a seeded profile recomputes the identical value.
+    console.log('\n⭐ Recomputing fame ratings from engagement...');
+    await pool.query(`
+      UPDATE users u SET fame_rating = LEAST(100, GREATEST(0, ROUND(
+          (SELECT COUNT(*) FROM likes          WHERE liked_id   = u.id) * 3
+        + (SELECT COUNT(*) FROM profile_visits WHERE visited_id = u.id) * 0.5
+        + (SELECT COUNT(*) FROM likes l1
+             JOIN likes l2 ON l1.liked_id = l2.liker_id AND l1.liker_id = l2.liked_id
+             WHERE l1.liker_id = u.id) * 10
+        - (SELECT COUNT(*) FROM reports        WHERE reported_id = u.id) * 10
+      )))
+    `);
+    const fameStats = await pool.query(
+      `SELECT MIN(fame_rating) AS min, ROUND(AVG(fame_rating)) AS avg, MAX(fame_rating) AS max FROM users`
+    );
+    const { min, avg, max } = fameStats.rows[0];
+    console.log(`   ✓ Fame range: min ${min} / avg ${avg} / max ${max}`);
 
     // Summary
     console.log('\n' + '='.repeat(50));

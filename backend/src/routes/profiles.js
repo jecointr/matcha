@@ -787,11 +787,11 @@ router.post('/:userId/report', async (req, res) => {
       [currentUserId, userId, reason || 'Fake account']
     );
 
-    // Decrease fame rating for reported user
-    await query(
-      'UPDATE users SET fame_rating = GREATEST(0, fame_rating - 5) WHERE id = $1',
-      [userId]
-    );
+    // Recompute the reported user's fame through the single source of truth
+    // (updateFameRating), which already subtracts reports*10. A previous ad-hoc
+    // "fame - 5" here was inconsistent with the formula and got silently
+    // overwritten on the user's next view/like, so the real penalty was -10 anyway.
+    await updateFameRating(parseInt(userId));
 
     res.json({ message: 'Report submitted' });
 

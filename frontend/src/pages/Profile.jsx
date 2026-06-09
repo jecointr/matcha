@@ -306,7 +306,7 @@ const Profile = () => {
               )}
               <span className="flex items-center gap-1">
                 <Heart className="w-4 h-4 text-primary-500" />
-                Fame: {profile?.fameRating || 0}%
+                Fame: {profile?.fameRating || 0}
               </span>
             </div>
           </div>
