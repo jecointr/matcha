@@ -178,15 +178,15 @@ const UserProfile = () => {
       <div className="card p-0 overflow-hidden transition-colors duration-200">
         {/* Photo gallery */}
         <div className="relative bg-gray-100 dark:bg-gray-900 transition-colors">
-          <div className="aspect-4/3 sm:aspect-video">
+          <div>
             {profile.photos && profile.photos.length > 0 ? (
               <img
                 src={getPhotoUrl(profile.photos[currentPhotoIndex]?.url)}
                 alt={profile.firstName}
-                className="w-full h-full object-cover"
+                className="block w-full h-auto max-h-[70vh] object-contain"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-600 transition-colors">
+              <div className="aspect-4/3 sm:aspect-video w-full flex items-center justify-center text-gray-400 dark:text-gray-600 transition-colors">
                 <span className="text-6xl">👤</span>
               </div>
             )}
