@@ -9,6 +9,25 @@ const router = Router();
 router.use(authenticate);
 router.use(requireVerified);
 
+// Validate numeric route params once, so a malformed id returns 400 instead of
+// reaching SQL and raising a 500. `:targetId` = the other user, `:id` = an event.
+router.param('targetId', (req, res, next, value) => {
+  const id = parseInt(value, 10);
+  if (Number.isNaN(id) || id < 1) {
+    return res.status(400).json({ error: 'Invalid user id' });
+  }
+  req.params.targetId = id;
+  next();
+});
+router.param('id', (req, res, next, value) => {
+  const id = parseInt(value, 10);
+  if (Number.isNaN(id) || id < 1) {
+    return res.status(400).json({ error: 'Invalid event id' });
+  }
+  req.params.id = id;
+  next();
+});
+
 /**
  * POST /api/events
  * Create a new date proposal
@@ -17,6 +36,12 @@ router.post('/', async (req, res) => {
   try {
     const { targetId, date, location, description } = req.body;
     const creatorId = req.userId;
+
+    // targetId comes from the body (not a route param) → validate it here.
+    const target = parseInt(targetId, 10);
+    if (Number.isNaN(target) || target < 1) {
+      return res.status(400).json({ error: 'Invalid target user' });
+    }
 
     // 1. Validation
     const validation = validateEvent({ date, location, description });
@@ -29,7 +54,7 @@ router.post('/', async (req, res) => {
       SELECT 1 FROM likes l1
       JOIN likes l2 ON l1.liked_id = l2.liker_id AND l1.liker_id = l2.liked_id
       WHERE l1.liker_id = $1 AND l1.liked_id = $2
-    `, [creatorId, targetId]);
+    `, [creatorId, target]);
 
     if (!matchCheck) {
       return res.status(403).json({ error: 'You can only schedule dates with matched users' });
@@ -43,7 +68,7 @@ router.post('/', async (req, res) => {
       WHERE status = 'pending'
         AND ((creator_id = $1 AND target_id = $2)
           OR (creator_id = $2 AND target_id = $1))
-    `, [creatorId, targetId]);
+    `, [creatorId, target]);
 
     if (existingPending) {
       return res.status(409).json({
@@ -59,7 +84,7 @@ router.post('/', async (req, res) => {
       INSERT INTO events (creator_id, target_id, event_date, location, description)
       VALUES ($1, $2, $3, $4, $5)
       RETURNING *
-    `, [creatorId, targetId, date, cleanLocation, cleanDescription]);
+    `, [creatorId, target, date, cleanLocation, cleanDescription]);
 
     // No dedicated "event_*" notification. The proposal is carried by a chat message
     // (sent from the frontend) → the recipient is notified like for any message, and
