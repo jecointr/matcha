@@ -83,24 +83,9 @@ export const processImage = async (buffer, userId) => {
       progressive: true
     })
     .toFile(filepath);
-  
-  // Also create thumbnail
-  const thumbFilename = `thumb_${filename}`;
-  const thumbPath = path.join(UPLOAD_DIR, thumbFilename);
-  
-  await sharp(buffer)
-    .resize(200, 200, {
-      fit: 'cover',
-      position: 'center'
-    })
-    .jpeg({
-      quality: 80
-    })
-    .toFile(thumbPath);
-  
+
   return {
     filename,
-    thumbFilename,
     width: metadata.width,
     height: metadata.height
   };

@@ -130,12 +130,6 @@ async function generatePhotos() {
             await downloadImage(fallbackUrl, filepath);
         }
 
-        const thumbFilename = `thumb_${filename}`;
-        const thumbPath = path.join(UPLOAD_DIR, thumbFilename);
-        if (fs.existsSync(filepath)) {
-            fs.copyFileSync(filepath, thumbPath);
-        }
-
         await pool.query(`
           INSERT INTO photos (user_id, filename, is_profile_picture)
           VALUES ($1, $2, true)

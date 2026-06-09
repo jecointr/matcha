@@ -257,7 +257,6 @@ router.post('/photos', upload.single('photo'), handleUploadError, async (req, re
       photo: {
         id: photo.id,
         url: `/uploads/${photo.filename}`,
-        thumbnailUrl: `/uploads/thumb_${photo.filename}`,
         isProfilePicture: photo.is_profile_picture
       }
     });
