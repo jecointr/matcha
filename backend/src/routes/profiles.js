@@ -121,7 +121,10 @@ router.get('/browse', async (req, res) => {
       tagsSelect = `${tagsCountQuery} as common_tags`;
     }
 
-    // Sorting
+    // Sorting. A deterministic tiebreaker (u.id) is appended to every ORDER BY so
+    // that profiles tied on the primary key (same fame, distance, common-tag count —
+    // very common) keep a stable order across requests. Without it, Postgres returns
+    // tied rows in an arbitrary order that reshuffles every time Browse remounts.
     let orderBy;
     const order = sortOrder.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
     switch (sortBy) {
@@ -142,6 +145,7 @@ router.get('/browse', async (req, res) => {
         orderBy = `(${tagsCountQuery} * 10 + u.fame_rating - COALESCE(${distanceFormula}, 100)/10) DESC`;
         break;
     }
+    orderBy += `, u.id ASC`;
 
     // Main query
     const selectBody = `
