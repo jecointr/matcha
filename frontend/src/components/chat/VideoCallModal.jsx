@@ -175,7 +175,7 @@ const VideoCallModal = () => {
         )}
 
         <button onClick={() => leaveCall()} className="bg-red-600 hover:bg-red-700 text-white p-5 px-10 rounded-full font-bold shadow-lg flex items-center gap-2 transform transition hover:scale-105 cursor-pointer">
-          <PhoneOff /> End Call
+          {isVideoCall ? <VideoOff /> : <PhoneOff />} End Call
         </button>
       </div>
     </div>
