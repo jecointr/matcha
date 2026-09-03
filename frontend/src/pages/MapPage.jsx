@@ -12,6 +12,7 @@ import 'leaflet/dist/leaflet.css';
 import 'react-leaflet-cluster/dist/assets/MarkerCluster.css';
 import 'react-leaflet-cluster/dist/assets/MarkerCluster.Default.css';
 import L from 'leaflet';
+import { reverseGeocodeLocation } from '../utils/reverseGeocodeLocation';
 
 // Fix for the default Leaflet icons
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
@@ -79,24 +80,6 @@ const MapPage = () => {
   const [pending, setPending] = useState(null);   // { lat, lng, city, country }
   const [confirming, setConfirming] = useState(false);
 
-  // Reverse-geocode GPS coords to a human place — both to name it in the
-  // confirmation and to keep the account's city/country in sync with the coords.
-  const reverseGeocode = async (lat, lng) => {
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
-        { headers: { 'Accept-Language': 'en' } }
-      );
-      const data = await res.json();
-      return {
-        city: data.address?.city || data.address?.town || data.address?.village || 'Unknown',
-        country: data.address?.country || 'Unknown',
-      };
-    } catch {
-      return { city: 'Unknown', country: 'Unknown' };
-    }
-  };
-
   // Persist the chosen position (consent=true → joins the precise-GPS map) and
   // load the other map users.
   const persistAndShow = async ({ lat, lng, city, country }) => {
@@ -119,7 +102,7 @@ const MapPage = () => {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
-        const geo = await reverseGeocode(latitude, longitude);
+        const geo = await reverseGeocodeLocation(latitude, longitude);
         const loc = { lat: latitude, lng: longitude, city: geo.city, country: geo.country };
         if (skipConfirm) {
           try {
@@ -191,7 +174,7 @@ const MapPage = () => {
       async (position) => {
         const { latitude, longitude } = position.coords;
         try {
-          const geo = await reverseGeocode(latitude, longitude);
+          const geo = await reverseGeocodeLocation(latitude, longitude);
           await userAPI.updateLocation({
             latitude, longitude, city: geo.city, country: geo.country, consent: true,
           });

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { MapPin, Navigation, Loader, AlertCircle, Search, Check } from 'lucide-react';
 import { userAPI } from '../../services/api';
+import { reverseGeocodeLocation } from '../../utils/reverseGeocodeLocation';
 
 const LocationPicker = ({ location, onUpdate }) => {
   const [loading, setLoading] = useState(false);
@@ -38,7 +39,7 @@ const LocationPicker = ({ location, onUpdate }) => {
 
         try {
           // Reverse geocoding to get city/country
-          const geoData = await reverseGeocode(latitude, longitude);
+          const geoData = await reverseGeocodeLocation(latitude, longitude);
 
           // Save to the server
           await userAPI.updateLocation({
@@ -76,33 +77,6 @@ const LocationPicker = ({ location, onUpdate }) => {
         maximumAge: 0
       }
     );
-  };
-
-  const reverseGeocode = async (lat, lng) => {
-    try {
-      // The subject requires GPS positioning "down to their neighborhood", so we
-      // ask Nominatim for building-level detail (zoom=18) and keep the
-      // neighbourhood, not just the city.
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&zoom=18&addressdetails=1&lat=${lat}&lon=${lng}`,
-        { headers: { 'Accept-Language': 'en' } }
-      );
-      const data = await response.json();
-      const addr = data.address || {};
-
-      const neighbourhood =
-        addr.neighbourhood || addr.suburb || addr.quarter || addr.city_district || '';
-      const city =
-        addr.city || addr.town || addr.village || addr.municipality || 'Unknown';
-
-      return {
-        // "Neighbourhood, City" when available, otherwise just the city.
-        city: [neighbourhood, city].filter(Boolean).join(', '),
-        country: addr.country || 'Unknown'
-      };
-    } catch {
-      return { city: 'Unknown', country: 'Unknown' };
-    }
   };
 
   // --- City autocomplete (OpenStreetMap / Nominatim) ---
