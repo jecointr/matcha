@@ -22,6 +22,7 @@ export const useSocket = () => {
       startTyping: () => {},
       stopTyping: () => {},
       onChatMessage: () => () => {},
+      onMessageEdited: () => () => {},
       onTyping: () => () => {},
       onUnmatch: () => () => {},
       clearUnreadMessages: () => {},
@@ -192,6 +193,14 @@ export const SocketProvider = ({ children }) => {
     return () => {};
   }, [socket]);
 
+  const onMessageEdited = useCallback((callback) => {
+    if (socket) {
+      socket.on('chat:message:edited', callback);
+      return () => socket.off('chat:message:edited', callback);
+    }
+    return () => {};
+  }, [socket]);
+
   const onTyping = useCallback((callback) => {
     if (!socket) return () => {};
 
@@ -247,6 +256,7 @@ export const SocketProvider = ({ children }) => {
     startTyping,
     stopTyping,
     onChatMessage,
+    onMessageEdited,
     onTyping,
     clearUnreadMessages,
     clearUnreadNotifications,

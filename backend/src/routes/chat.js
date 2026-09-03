@@ -245,6 +245,7 @@ router.get('/:conversationId/messages', async (req, res) => {
         m.content,
         m.is_read,
         m.created_at,
+        m.edited_at,
         m.reply_to_id,
         (SELECT content FROM messages WHERE id = m.reply_to_id) as reply_content, 
         (SELECT sender_id FROM messages WHERE id = m.reply_to_id) as reply_sender_id,
@@ -281,6 +282,7 @@ router.get('/:conversationId/messages', async (req, res) => {
         content: m.content,
         isRead: m.is_read,
         createdAt: m.created_at,
+        editedAt: m.edited_at,
         isOwn: m.sender_id === userId,
         reactions: m.reactions,
         replyToId: m.reply_to_id,
@@ -386,6 +388,7 @@ router.post('/:conversationId/messages', async (req, res) => {
       content: cleanContent,
       isRead: false,
       createdAt: message.created_at,
+      editedAt: null,
       // Include reply info so the recipient can render it over WebSockets
       replyToId: message.reply_to_id,
       replyContent: replyContent,         
@@ -419,6 +422,7 @@ router.post('/:conversationId/messages', async (req, res) => {
         content: message.content,
         isRead: message.is_read,
         createdAt: message.created_at,
+        editedAt: null,
         isOwn: true,
         replyToId: message.reply_to_id,
         replyContent: replyContent, 
@@ -497,6 +501,161 @@ router.get('/unread-count', async (req, res) => {
   } catch (error) {
     console.error('Get unread count error:', error);
     res.status(500).json({ error: 'Failed to get unread count' });
+  }
+});
+
+/**
+ * PUT /api/chat/messages/:messageId
+ * Edit a previously sent message (one edit max).
+ */
+router.put('/messages/:messageId', async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { messageId } = req.params;
+    const { content } = req.body;
+
+    const mid = parseInt(messageId, 10);
+    if (Number.isNaN(mid) || mid < 1) {
+      return res.status(400).json({ error: 'Invalid message id' });
+    }
+
+    if (!content || typeof content !== 'string' || content.trim().length === 0) {
+      return res.status(400).json({ error: 'Message content required' });
+    }
+
+    const cleanContent = xss(content.trim()).slice(0, 1000);
+
+    // Load message + conversation participants
+    const message = await queryOne(`
+      SELECT
+        m.id,
+        m.conversation_id,
+        m.sender_id,
+        m.reply_to_id,
+        m.edited_at,
+        c.user1_id,
+        c.user2_id
+      FROM messages m
+      JOIN conversations c ON c.id = m.conversation_id
+      WHERE m.id = $1
+    `, [mid]);
+
+    if (!message) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    // Only the sender can edit their message
+    if (message.sender_id !== userId) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    // One edit max
+    if (message.edited_at) {
+      return res.status(409).json({ error: 'Message already edited' });
+    }
+
+    const otherUserId = message.user1_id === userId ? message.user2_id : message.user1_id;
+
+    // Block editing if conversation is no longer matched
+    if (!(await areMatched(userId, otherUserId))) {
+      return res.status(403).json({ error: 'You can only edit matched conversations' });
+    }
+
+    // Block editing if either side blocked the other
+    const blocked = await queryOne(`
+      SELECT 1 FROM blocks
+      WHERE (blocker_id = $1 AND blocked_id = $2)
+         OR (blocker_id = $2 AND blocked_id = $1)
+    `, [userId, otherUserId]);
+    if (blocked) {
+      return res.status(403).json({ error: 'Cannot edit message for a blocked user' });
+    }
+
+    // Update message (still guarded by edited_at IS NULL)
+    const updated = await queryOne(`
+      UPDATE messages
+      SET content = $1, edited_at = CURRENT_TIMESTAMP
+      WHERE id = $2 AND sender_id = $3 AND edited_at IS NULL
+      RETURNING id, conversation_id, sender_id, content, is_read, created_at, reply_to_id, edited_at
+    `, [cleanContent, mid, userId]);
+
+    if (!updated) {
+      return res.status(409).json({ error: 'Message already edited' });
+    }
+
+    // Fetch enriched message (reactions + reply context) for client replacement
+    const updatedFull = await queryOne(`
+      SELECT
+        m.id,
+        m.conversation_id,
+        m.sender_id,
+        m.content,
+        m.is_read,
+        m.created_at,
+        m.reply_to_id,
+        m.edited_at,
+        u.first_name,
+        COALESCE(
+          (
+            SELECT json_agg(json_build_object('userId', mr.user_id, 'emoji', mr.emoji))
+            FROM message_reactions mr
+            WHERE mr.message_id = m.id
+          ),
+          '[]'
+        ) as reactions,
+        (SELECT content FROM messages WHERE id = m.reply_to_id) as reply_content,
+        (SELECT sender_id FROM messages WHERE id = m.reply_to_id) as reply_sender_id,
+        (SELECT first_name FROM users WHERE id = (SELECT sender_id FROM messages WHERE id = m.reply_to_id)) as reply_sender_name
+      FROM messages m
+      JOIN users u ON u.id = m.sender_id
+      WHERE m.id = $1
+    `, [mid]);
+
+    if (!updatedFull) {
+      return res.status(500).json({ error: 'Failed to load edited message' });
+    }
+
+    const io = req.app.get('io');
+    const payload = {
+      id: updatedFull.id,
+      conversationId: parseInt(updatedFull.conversation_id),
+      senderId: updatedFull.sender_id,
+      senderName: req.user.first_name,
+      content: updatedFull.content,
+      isRead: updatedFull.is_read,
+      createdAt: updatedFull.created_at,
+      editedAt: updatedFull.edited_at,
+      replyToId: updatedFull.reply_to_id,
+      replyContent: updatedFull.reply_content,
+      replySenderId: updatedFull.reply_sender_id,
+      replySenderName: updatedFull.reply_sender_name,
+      reactions: updatedFull.reactions,
+    };
+
+    // Send to both participants so the receiver replaces the content too.
+    io.to(`user:${message.user1_id}`).emit('chat:message:edited', payload);
+    io.to(`user:${message.user2_id}`).emit('chat:message:edited', payload);
+
+    res.json({
+      message: {
+        id: updatedFull.id,
+        senderId: updatedFull.sender_id,
+        senderName: updatedFull.first_name,
+        content: updatedFull.content,
+        isRead: updatedFull.is_read,
+        createdAt: updatedFull.created_at,
+        editedAt: updatedFull.edited_at,
+        isOwn: true,
+        reactions: updatedFull.reactions,
+        replyToId: updatedFull.reply_to_id,
+        replyContent: updatedFull.reply_content,
+        replySenderId: updatedFull.reply_sender_id,
+        replySenderName: updatedFull.reply_sender_name,
+      }
+    });
+  } catch (error) {
+    console.error('Edit message error:', error);
+    res.status(500).json({ error: 'Failed to edit message' });
   }
 });
 

@@ -8,7 +8,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import eventRoutes from './routes/events.js';
 
-import { connectDB, testConnection } from './config/database.js';
+import { connectDB, testConnection, query } from './config/database.js';
 import { initializeSocket } from './config/socket.js';
 
 // Routes
@@ -157,6 +157,15 @@ const startServer = async () => {
   try {
     await connectDB();
     console.log('✅ Database connected');
+
+    // Best-effort schema hardening for older DB snapshots.
+    // The app uses `messages.edited_at` for message edition.
+    try {
+      await query('ALTER TABLE messages ADD COLUMN IF NOT EXISTS edited_at TIMESTAMP');
+    } catch (err) {
+      // Don't fail boot: the DB schema may be managed externally.
+      console.error('Schema check (messages.edited_at) failed:', err.message);
+    }
     
     httpServer.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Server running on port ${PORT}`);

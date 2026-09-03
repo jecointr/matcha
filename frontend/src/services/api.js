@@ -84,6 +84,7 @@ export const chatAPI = {
   getConversation: (otherUserId) => api.get(`/chat/conversations/${otherUserId}`),
   getMessages: (conversationId, params) => api.get(`/chat/${conversationId}/messages`, { params }),
   sendMessage: (conversationId, content, replyToId = null) => api.post(`/chat/${conversationId}/messages`, { content, replyToId }),
+  editMessage: (messageId, content) => api.put(`/chat/messages/${messageId}`, { content }),
   markAsRead: (conversationId) => api.put(`/chat/${conversationId}/read`),
   getUnreadCount: () => api.get('/chat/unread-count'),
   reactToMessage: (messageId, emoji) => api.post(`/chat/messages/${messageId}/react`, { emoji }),
