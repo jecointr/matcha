@@ -19,9 +19,8 @@ const Notifications = () => {
     const initNotifications = async () => {
       try {
         const response = await notificationAPI.getNotifications({ limit: 50 });
-        
-        const filteredNotifs = response.data.notifications.filter(n => n.type !== 'message');
-        setNotifications(filteredNotifs);
+
+        setNotifications(response.data.notifications);
 
         clearUnreadNotifications();
 
@@ -44,8 +43,6 @@ const Notifications = () => {
     if (!socket) return;
 
     const handleNewNotification = (newNotification) => {
-      if (newNotification.type === 'message') return;
-
       setNotifications(prev => [newNotification, ...prev]);
     };
 

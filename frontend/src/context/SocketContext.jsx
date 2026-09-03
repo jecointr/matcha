@@ -109,11 +109,14 @@ export const SocketProvider = ({ children }) => {
       const activeChatId = url.searchParams.get('id');
 
       if (notification.type === 'message') {
-        // Already on this chat → ignore the notification (no +1)
-        if (isChat && Number(activeChatId) === Number(notification.data?.conversationId)) {
+        // Already on this chat conversation → ignore the unread notification (+1)
+        if (
+          isChat &&
+          Number(activeChatId) === Number(notification.data?.conversationId)
+        ) {
           return;
         }
-        setUnreadMessages(prev => prev + 1);
+        setUnreadNotifications((prev) => prev + 1);
       } else {
         setNotifications(prev => {
             if (prev.some(n => n.id === notification.id)) return prev;

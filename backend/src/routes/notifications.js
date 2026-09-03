@@ -9,7 +9,7 @@ router.use(requireVerified);
 
 /**
  * GET /api/notifications
- * Get notifications for current user (EXCLUDING messages)
+ * Get notifications for current user
  */
 router.get('/', async (req, res) => {
   try {
@@ -17,7 +17,7 @@ router.get('/', async (req, res) => {
     const { page = 1, limit = 20, unreadOnly = false } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
-    let whereClause = "WHERE n.user_id = $1 AND n.type != 'message'";
+    let whereClause = "WHERE n.user_id = $1";
     
     if (unreadOnly === 'true') {
       whereClause += ' AND n.is_read = false';
@@ -50,7 +50,6 @@ router.get('/', async (req, res) => {
       FROM notifications n
       WHERE n.user_id = $1 
       AND n.is_read = false 
-      AND n.type != 'message'
     `, [userId]);
 
     res.json({
@@ -85,7 +84,7 @@ router.get('/', async (req, res) => {
 
 /**
  * GET /api/notifications/unread-count
- * Get unread notification count (EXCLUDING messages)
+ * Get unread notification count
  */
 router.get('/unread-count', async (req, res) => {
   try {
@@ -96,7 +95,6 @@ router.get('/unread-count', async (req, res) => {
       FROM notifications 
       WHERE user_id = $1 
       AND is_read = false 
-      AND type != 'message'
     `, [userId]);
 
     res.json({ count: result.count });

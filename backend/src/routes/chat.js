@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { query, queryOne, queryAll } from '../config/database.js';
 import { authenticate, requireVerified } from '../middlewares/auth.js';
-import { sendReaction } from '../config/socket.js';
+import { sendReaction, sendNotification } from '../config/socket.js';
 import xss from 'xss';
 
 const router = Router();
@@ -400,6 +400,17 @@ router.post('/:conversationId/messages', async (req, res) => {
     // No dedicated 'message' notification anymore: it was filtered out of the list,
     // useless for the badge, and caused a double count (chat:message + notification).
     io.to(`user:${conversation.other_user_id}`).emit('chat:message', messageData);
+
+    // Also create a real notification entry so it appears in the Notifications
+    // tab (subject IV.7: "when they receive a message").
+    // Best-effort: never break the chat if notifications persistence fails.
+    sendNotification(io, conversation.other_user_id, 'message', {
+      fromUserId: userId,
+      conversationId: parseInt(conversationId),
+      message: `${req.user.first_name} sent you a message`,
+    }).catch((err) => {
+      console.error('Message notification error:', err);
+    });
 
     res.status(201).json({
       message: {
