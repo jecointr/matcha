@@ -15,6 +15,21 @@ import { useToast, useConfirm } from '../context/FeedbackContext';
 
 import { getPhotoUrl } from '../utils/format';
 
+/** Shared “someone is typing” dots — same look in sidebar + open chat. */
+const TypingDots = ({ size = 'md' }) => {
+  const dot =
+    size === 'sm'
+      ? 'w-1.5 h-1.5'
+      : 'w-2 h-2';
+  return (
+    <div className="flex gap-1" aria-label="Typing">
+      <span className={`${dot} bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce`} style={{ animationDelay: '0ms' }} />
+      <span className={`${dot} bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce`} style={{ animationDelay: '150ms' }} />
+      <span className={`${dot} bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce`} style={{ animationDelay: '300ms' }} />
+    </div>
+  );
+};
+
 const Chat = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -622,14 +637,9 @@ const Chat = () => {
                   </div>
                   {ended ? (
                     <p className="text-sm truncate italic text-gray-400 dark:text-gray-500">Connection ended</p>
-                  ) : typingConvs[conv.id] ? (
-                    <span className="text-sm flex items-center gap-1.5 text-primary-500 dark:text-primary-400 font-medium">
-                      typing
-                      <span className="flex gap-0.5">
-                        <span className="w-1 h-1 bg-primary-500 dark:bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                        <span className="w-1 h-1 bg-primary-500 dark:bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                        <span className="w-1 h-1 bg-primary-500 dark:bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                      </span>
+                  ) : typingConvs[Number(conv.id)] ? (
+                    <span className="inline-flex items-center bg-gray-100 dark:bg-gray-800 px-2.5 py-1 rounded-2xl rounded-bl-md transition-colors duration-200">
+                      <TypingDots size="sm" />
                     </span>
                   ) : (
                     <p className={`text-sm truncate transition-colors duration-200 ${conv.unreadCount > 0 ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>
@@ -938,15 +948,11 @@ const Chat = () => {
                 );
               })}
               
-              {/* Typing indicator */}
+              {/* Typing indicator — same dots as sidebar */}
               {typingConvs[Number(activeConversation.id)] && (
                 <div className="flex justify-start">
                   <div className="bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-2xl rounded-bl-md transition-colors duration-200">
-                    <div className="flex gap-1">
-                      <span className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <span className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <span className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                    </div>
+                    <TypingDots />
                   </div>
                 </div>
               )}
