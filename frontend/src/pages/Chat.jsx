@@ -7,7 +7,7 @@ import {
   Send, Loader, MessageCircle, Circle, ArrowLeft,
   ChevronLeft, User, Check, CheckCheck, Calendar,
   MapPin, Clock, Video, Phone, Ban, Smile, Reply, X,
-  HeartOff, Lock
+  HeartOff, Lock, Edit2
 } from 'lucide-react';
 import EventModal from '../components/chat/EventModal';
 import { useCall } from '../context/CallContext';
@@ -46,6 +46,7 @@ const Chat = () => {
     clearUnreadMessages,
     sendReadSignal,
     onReaction,
+    onMessageEdited,
     onUnmatch
   } = useSocket();
   
@@ -69,9 +70,12 @@ const Chat = () => {
   const [creatingEvent, setCreatingEvent] = useState(false);
   const [activeEmojiMenu, setActiveEmojiMenu] = useState(null);
   const [replyingTo, setReplyingTo] = useState(null);
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [savingEdit, setSavingEdit] = useState(false);
   
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
+  const messageInputRef = useRef(null);
   
   const isTypingRef = useRef(false);
   const typingTimeoutRef = useRef(null);
@@ -282,6 +286,11 @@ const Chat = () => {
       joinChat(activeConversation.id);
       loadMessages(activeConversation.id);
       markAsRead(activeConversation.id);
+
+      // Switching conversation cancels in-progress reply/edit drafts.
+      setReplyingTo(null);
+      setEditingMessageId(null);
+      setNewMessage('');
       
       isTypingRef.current = false;
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
@@ -352,6 +361,42 @@ const Chat = () => {
 
     return unsubscribe;
   }, [onChatMessage, activeConversation, user.id]);
+
+  // Receive edited messages and replace the corresponding bubble content.
+  useEffect(() => {
+    if (!onMessageEdited) return;
+
+    const unsubscribe = onMessageEdited((message) => {
+      const msgConvId = Number(message.conversationId || message.conversation_id);
+      if (!msgConvId) return;
+
+      // Replace in message list
+      setMessages(prev => {
+        const nextIsOwn = message.senderId === user.id;
+        if (!prev.some(m => m.id === message.id)) {
+          return [...prev, { ...message, isOwn: nextIsOwn }];
+        }
+        return prev.map(m =>
+          m.id === message.id ? { ...m, ...message, isOwn: nextIsOwn } : m
+        );
+      });
+
+      // Update conversation preview (last message)
+      setConversations(prev =>
+        prev.map(c =>
+          Number(c.id) === msgConvId
+            ? {
+                ...c,
+                lastMessage: message.content,
+                lastMessageAt: message.editedAt || message.createdAt || new Date().toISOString(),
+              }
+            : c
+        )
+      );
+    });
+
+    return unsubscribe;
+  }, [onMessageEdited, user.id]);
 
   useEffect(() => {
     const clearTyping = (convId) => {
@@ -442,7 +487,13 @@ const Chat = () => {
 
   const handleSend = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim() || sending || !activeConversation) return;
+    if (!newMessage.trim() || sending || savingEdit || !activeConversation) return;
+
+    // Composer is reused for message edition.
+    if (editingMessageId) {
+      await handleSaveEditMessage();
+      return;
+    }
 
     if (activeConversation) {
       stopTyping(activeConversation.id, activeConversation.otherUser.id);
@@ -462,6 +513,7 @@ const Chat = () => {
       id: tempId,
       senderId: user.id,
       content: content,
+      editedAt: null,
       isRead: false,
       createdAt: new Date().toISOString(),
       isOwn: true,
@@ -507,9 +559,76 @@ const Chat = () => {
     }
   };
 
+  const startEditMessage = (msg) => {
+    if (isEnded) return;
+    if (!msg || !msg.isOwn) return;
+    if (msg.status === 'sending') return;
+    if (msg.editedAt) return; // One edit max per message
+    if (savingEdit || sending) return;
+
+    // Edit and reply are mutually exclusive.
+    setReplyingTo(null);
+    setEditingMessageId(msg.id);
+    setNewMessage(msg.content || '');
+    // Focus the shared composer.
+    setTimeout(() => messageInputRef.current?.focus(), 0);
+  };
+
+  const cancelEditMessage = () => {
+    setEditingMessageId(null);
+    setNewMessage('');
+  };
+
+  const handleSaveEditMessage = async () => {
+    if (!editingMessageId || !activeConversation) return;
+    if (isEnded) return;
+    const content = newMessage.trim();
+    if (!content) {
+      toast.error('Message content required.');
+      return;
+    }
+
+    setSavingEdit(true);
+    try {
+      const response = await chatAPI.editMessage(editingMessageId, content);
+      const updated = response.data.message;
+
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === editingMessageId
+            ? { ...m, ...updated, editedAt: updated.editedAt, isOwn: true }
+            : m
+        )
+      );
+
+      // Update conversation preview in sidebar
+      setConversations(prev =>
+        prev.map(c =>
+          Number(c.id) === Number(activeConversation.id)
+            ? {
+                ...c,
+                lastMessage: updated.content,
+                lastMessageAt: updated.editedAt || new Date().toISOString(),
+              }
+            : c
+        )
+      );
+
+      cancelEditMessage();
+    } catch (err) {
+      console.error('Failed to edit message:', err);
+      toast.error(err.response?.data?.error || 'Failed to edit message.');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   const handleTyping = (e) => {
     const value = e.target.value;
     setNewMessage(value);
+
+    // Don't broadcast "typing…" while editing an existing message.
+    if (editingMessageId) return;
     
     if (!activeConversation) return;
 
@@ -834,16 +953,39 @@ const Chat = () => {
                       {/* Inner Container : items-center assure le centrage vertical du bouton emoji */}
                       <div className={`flex items-center gap-2 max-w-[85%] md:max-w-[75%] ${msg.isOwn ? 'flex-row' : 'flex-row-reverse'}`}>
                         
-                        {/* Reply / react actions — hidden on an ended (read-only) conversation */}
+                        {/* Reply / react / edit actions — hidden on an ended (read-only) conversation */}
                         {!isEnded && (
                         <>
-                        {/* BOUTON DE REPONSE */}
+                        {/* Edit — own messages only, one edit max */}
+                        {msg.isOwn && msg.status !== 'sending' && !msg.editedAt && (
+                        <div className={`relative shrink-0 transition-all duration-200 ${
+                            editingMessageId === msg.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                        }`}>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    startEditMessage(msg);
+                                }}
+                                className={`p-1.5 rounded-full transition-colors ${
+                                    editingMessageId === msg.id
+                                      ? 'text-primary-500 bg-gray-100 dark:bg-gray-800'
+                                      : 'text-gray-400 dark:text-gray-500 hover:text-primary-500 dark:hover:text-primary-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                                }`}
+                                title="Edit"
+                            >
+                                <Edit2 className="w-4 h-4" />
+                            </button>
+                        </div>
+                        )}
+
+                        {/* Reply */}
                         <div className={`relative shrink-0 transition-all duration-200 ${
                             replyingTo?.id === msg.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                         }`}>
                             <button 
                                 onClick={(e) => {
                                     e.stopPropagation();
+                                    setEditingMessageId(null);
                                     setReplyingTo(msg);
                                 }}
                                 className={`p-1.5 rounded-full transition-colors ${
@@ -855,7 +997,7 @@ const Chat = () => {
                             </button>
                         </div>
 
-                        {/* 1. BOUTON DE REACTION */}
+                        {/* Reaction */}
                         <div className={`relative shrink-0 transition-all duration-200 ${
                             activeEmojiMenu === msg.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                         }`}>
@@ -892,7 +1034,7 @@ const Chat = () => {
                             msg.isOwn 
                               ? 'bg-primary-500 text-white rounded-br-none' 
                               : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-bl-none'
-                          }`}>
+                          } ${editingMessageId === msg.id ? 'ring-2 ring-primary-300/80 dark:ring-primary-400/50' : ''}`}>
                             <div className="block">
                               {msg.replyToId && (
                                 <div className={`mb-1.5 p-2 rounded-lg text-xs border-l-4 transition-colors duration-200 ${
@@ -914,6 +1056,9 @@ const Chat = () => {
                                 msg.isOwn ? 'text-primary-100' : 'text-gray-400 dark:text-gray-500'
                               }`}>
                                 <span>{formatTime(msg.createdAt)}</span>
+                                {msg.editedAt && (
+                                  <span className="text-[10px] opacity-70">(edited)</span>
+                                )}
                                 {msg.isOwn && (
                                   <span className="flex self-center">
                                     <CheckCheck className={`w-4 h-4 ${
@@ -960,8 +1105,28 @@ const Chat = () => {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* PREVIEW DE REPONSE */}
-            {replyingTo && (
+            {/* Preview: reply OR edit (mutually exclusive) */}
+            {editingMessageId && (
+              <div className="px-4 py-2 bg-gray-50 dark:bg-gray-900 border-t dark:border-gray-800 flex items-start justify-between animate-in slide-in-from-bottom-2 duration-200 max-h-24 overflow-hidden transition-colors">
+                <div className="flex-1 min-w-0 border-l-4 border-amber-500 pl-3">
+                  <span className="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1 mb-1">
+                    <Edit2 className="w-3 h-3" /> Editing message
+                  </span>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 overflow-hidden">
+                    {messages.find(m => m.id === editingMessageId)?.content || ''}
+                  </p>
+                </div>
+                <button
+                  onClick={cancelEditMessage}
+                  disabled={savingEdit}
+                  className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-full ml-2 transition-colors shrink-0 disabled:opacity-50"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {replyingTo && !editingMessageId && (
               <div className="px-4 py-2 bg-gray-50 dark:bg-gray-900 border-t dark:border-gray-800 flex items-start justify-between animate-in slide-in-from-bottom-2 duration-200 max-h-24 overflow-hidden transition-colors">
                 <div className="flex-1 min-w-0 border-l-4 border-primary-500 pl-3">
                   <span className="text-xs font-bold text-primary-600 dark:text-primary-400 flex items-center gap-1 mb-1">
@@ -997,27 +1162,32 @@ const Chat = () => {
               <button
                 type="button"
                 onClick={() => setShowEventModal(true)}
-                disabled={hasPendingEvent}
+                disabled={hasPendingEvent || !!editingMessageId}
                 className="p-3 text-gray-500 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-gray-500"
-                title={hasPendingEvent ? 'A date proposal is already pending' : 'Schedule a date'}
+                title={editingMessageId ? 'Finish editing first' : (hasPendingEvent ? 'A date proposal is already pending' : 'Schedule a date')}
               >
                 <Calendar className="w-5 h-5" />
               </button>
               <input
+                ref={messageInputRef}
                 type="text"
                 value={newMessage}
                 onChange={handleTyping}
-                placeholder="Type a message..."
+                placeholder={editingMessageId ? 'Edit your message…' : 'Type a message...'}
                 className="flex-1 input py-3"
                 maxLength={1000}
+                disabled={savingEdit}
               />
               <button
                 type="submit"
-                disabled={!newMessage.trim() || sending}
+                disabled={!newMessage.trim() || sending || savingEdit}
                 className="btn-primary px-4"
+                title={editingMessageId ? 'Save edit' : 'Send'}
               >
-                {sending ? (
+                {(sending || savingEdit) ? (
                   <Loader className="w-5 h-5 animate-spin" />
+                ) : editingMessageId ? (
+                  <Check className="w-5 h-5" />
                 ) : (
                   <Send className="w-5 h-5" />
                 )}
