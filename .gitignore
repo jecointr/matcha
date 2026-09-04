@@ -75,4 +75,6 @@ __tests__/
 .parcel-cache/
 .eslintcache
 
-TODO_TEMPORAIRE_SOUTENANCE.md
+# Local notes — only README.md is tracked
+*.md
+!README.md
