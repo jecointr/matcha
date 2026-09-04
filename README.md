@@ -1,254 +1,201 @@
-# matcha
+# Matcha
 
-Matcha - Dating Application 💕
+Application de rencontre : profils, suggestions géolocalisées, likes mutuels, chat en temps réel. Un match débloque la conversation — et, au-delà du sujet, les appels audio/vidéo et les propositions de rendez-vous.
 
-A modern dating web application built with Node.js, React, PostgreSQL, and Docker.
+Projet [42](https://www.42.fr) (Matcha). Usage éducatif uniquement.
 
-## 🚀 Quick Start
+## Fonctionnalités
 
-### Prerequisites
-- Docker & Docker Compose
+- Compte local (email, username, nom, mot de passe) ou OAuth **Google** et **GitHub**
+- Vérification d’email et réinitialisation de mot de passe
+- Profil : genre, préférences, bio, tags, jusqu’à 5 photos, localisation GPS ou manuelle
+- Suggestions selon préférences, distance, tags en commun et fame rating
+- Recherche avancée, filtres (âge, distance, fame, tags) et tris
+- Carte Leaflet des profils à proximité
+- Like / unlike, match mutuel, visites, blocage, signalement
+- Chat temps réel (Socket.io) : messages, réponses, édition, réactions, typing, badges
+- Appels audio et vidéo WebRTC entre personnes matchées
+- Notifications live (like, visite, match, message, unlike)
+- Propositions de rendez-vous (date, lieu, acceptation / refus)
+- Thème clair / sombre, interface responsive (Chrome et Firefox)
+
+## Stack
+
+| Couche | Choix |
+| --- | --- |
+| Frontend | React 19, Vite, Tailwind CSS 4, Leaflet, Socket.io-client, simple-peer |
+| Backend | Node.js, Express 5, PostgreSQL 18, Socket.io |
+| Auth | JWT (`Authorization: Bearer`), bcryptjs (12 rounds) |
+| Mail (dev) | MailDev |
+| Infra | Docker Compose, Nginx (reverse proxy) |
+
+Contraintes du sujet 42 : SQL à la main (`pg`, requêtes paramétrées), validateurs maison (`backend/src/utils/validators.js`), pas d’ORM ni de librairie de validation.
+
+## Architecture
+
+```
+Navigateur (Vite :5173  ou  Nginx :8080)
+        │  JWT Bearer
+        ▼
+API Express + Socket.io (:3000)
+        │
+        ├── PostgreSQL (:5432)     comptes, photos, likes, chat, events
+        ├── MailDev (:1025 / :1080)
+        ├── Google / GitHub        OAuth (optionnel)
+        └── Disque local           ./backend/uploads  (photos)
+```
+
+Docker lance **toute** la stack : Postgres, API, frontend Vite, Nginx et MailDev.
+
+En dev, le navigateur parle à l’API sur `:3000`. Derrière Nginx, `/api`, `/socket.io` et `/uploads` sont same-origin. Un like mutuel crée la conversation ; un unlike la coupe et mute les notifications suivantes de cette personne. Le fame rating (0–100) est recalculé à partir des likes, visites, matchs et signalements.
+
+## Prérequis
+
+- Docker et Compose
 - Git
+- Applications OAuth Google et GitHub — optionnelles ; sans elles, seul le compte local fonctionne
 
-### Installation
+Node.js 22+ n’est nécessaire que pour lancer l’API ou le front **hors** Docker.
+
+## Démarrage
 
 ```bash
-# 1. Clone the repository
-git clone <your-repo-url>
+git clone <url-du-repo>
 cd matcha
-
-# 2. Create environment file
 cp .env.example .env
+```
 
-# 3. ⚠️ IMPORTANT: Edit .env with your own secure values!
-#    - Change DB_PASSWORD
-#    - Change JWT_SECRET (must be 64+ characters)
+Remplis `.env` : `DB_PASSWORD` et `JWT_SECRET` (≥ 64 caractères). Les identifiants OAuth peuvent rester vides au début.
 
-# 4. Start all services
-docker-compose up --build
+```bash
+docker compose up --build
+```
 
-# 5. Wait for all services to start, then seed the database
+Une fois les services prêts, seed des profils de démo :
+
+```bash
 docker exec -it matcha_backend npm run seed
 docker exec -it matcha_backend npm run seed:photos
 ```
 
-### Access the application
-| Service | URL | Description |
-|---------|-----|-------------|
-| Frontend | http://localhost:5173 | Main application |
-| API | http://localhost:3000 | Backend API |
-| Nginx | http://localhost | Production reverse proxy |
-| MailDev | http://localhost:1080 | Email testing interface |
+| Service | URL |
+| --- | --- |
+| Frontend (Vite) | [http://localhost:5173](http://localhost:5173) |
+| API | [http://localhost:3000](http://localhost:3000) |
+| Nginx | [http://localhost:8080](http://localhost:8080) |
+| MailDev | [http://localhost:1080](http://localhost:1080) |
 
-### Test Credentials
-After running the seed, you can log in with any seeded user:
-- **Username**: Any username from the database (check via pgAdmin or logs)
-- **Password**: `Password123!`
+Le seed crée **520** profils (France, moitié autour de Paris). Mot de passe commun :
 
-Or create your own account via the registration form.
+| | |
+| --- | --- |
+| Username | `firstname_lastname_<index>` (ex. `sarah_martin_42`) |
+| Mot de passe | `Password123!` |
 
-## 📁 Project Structure
+Les mails de vérif / reset apparaissent dans MailDev : [http://localhost:1080](http://localhost:1080).
+
+Callbacks OAuth locaux (à déclarer côté provider) :
+
+```
+http://localhost:3000/api/auth/google/callback
+http://localhost:3000/api/auth/github/callback
+```
+
+## Configuration
+
+Les variables vivent dans `.env` à la racine (pas de fichiers séparés front / back).
+
+| Variable | Rôle |
+| --- | --- |
+| `DB_*` | Postgres — port hôte **5432** |
+| `JWT_SECRET` / `JWT_EXPIRES_IN` | Sessions (défaut 7 jours) |
+| `MAIL_*` / `MAIL_FROM` | Mail (MailDev en local) |
+| `FRONTEND_URL` | Liens des emails, redirects OAuth |
+| `BACKEND_URL` | Callbacks OAuth |
+| `CORS_ORIGINS` | Origines autorisées en production |
+| `GOOGLE_*` / `GITHUB_*` | OAuth navigateur |
+| `VITE_API_URL` / `VITE_WS_URL` | Vides en dev (déduits de l’hôte) ; figés au build en prod |
+| `RATE_LIMIT_*` | 3000 req / 15 min (prod) ; login 10 essais / heure (toujours actif) |
+
+En production : `NODE_ENV=production`, SMTP réel, secrets uniques, `CORS_ORIGINS` strict, et URLs Vite pointant vers le reverse proxy. Nginx sert alors le front et proxifie l’API.
+
+## API
+
+JWT dans `Authorization: Bearer` (stocké côté SPA). Le middleware JWT est global hors des routes publiques d’auth. Une route inconnue répond **404**. Rate limit login : 10 essais / heure par couple IP + username.
+
+**Auth**
+
+| | |
+| --- | --- |
+| `POST /api/auth/register` | Inscription |
+| `POST /api/auth/login` | Login |
+| `POST /api/auth/logout` | Logout |
+| `GET /api/auth/verify-email` · `POST /api/auth/resend-verification` | Email |
+| `POST /api/auth/forgot-password` · `POST /api/auth/reset-password` | Mot de passe |
+| `GET /api/auth/me` | Compte courant |
+| `GET /api/auth/{google,github}` · `…/callback` | OAuth |
+| `GET /api/health` | Santé API + Postgres |
+
+**Ressources**
+
+| | |
+| --- | --- |
+| `PUT /api/users/profile` · `PUT /api/users/location` | Profil, GPS |
+| `POST /api/users/photos` · `DELETE /api/users/photos/:id` · `PUT …/profile` | Photos (jpeg/png/webp, 5 Mo, 5 max, EXIF retiré) |
+| `GET/PUT /api/users/tags` | Intérêts |
+| `GET /api/users/blocked` · `POST/DELETE /api/users/:id/block` · `DELETE /api/users/me` | Blocage, suppression |
+| `GET /api/profiles/browse` · `GET /api/profiles/search` · `GET /api/profiles/map` | Catalogue |
+| `GET /api/profiles/:id` · `POST/DELETE /api/profiles/:id/like` · `POST …/report` | Fiche, like, signalement |
+| `GET /api/matches` · `…/likes` · `…/visits` · `…/my-likes` | Matchs, likes, visites |
+| `GET /api/chat/conversations` · `GET/POST /api/chat/:id/messages` | Chat |
+| `PUT /api/chat/messages/:id` · `POST /api/chat/messages/:id/react` | Édition, réactions |
+| `GET /api/notifications` · `PUT …/read` · `PUT …/read-all` | Notifications |
+| `POST /api/events` · `GET /api/events/:targetId` · `PUT /api/events/:id/status` | Rendez-vous |
+
+Mot de passe local : 8–128 caractères, majuscule, minuscule, chiffre, caractère spécial, aucun mot de dictionnaire (listes EN/FR) en séquence de lettres.
+
+## Structure
 
 ```
 matcha/
-├── backend/                 # Node.js/Express API
-│   ├── src/
-│   │   ├── config/         # Database & Socket.io config
-│   │   ├── routes/         # API routes
-│   │   ├── middlewares/    # Auth, upload middlewares
-│   │   ├── lib/            # Utilities (JWT, mailer, password)
-│   │   └── utils/          # Validators
-│   └── seeds/              # Database seeders
-├── frontend/               # React/Vite application
+├── backend/                 API Express
+│   ├── seeds/               520 profils + photos
 │   └── src/
-│       ├── components/     # Reusable UI components
-│       ├── pages/          # Page components
-│       ├── context/        # React contexts (Auth, Socket)
-│       └── services/       # API services
-├── nginx/                  # Reverse proxy config
-├── database/               # SQL init scripts
-├── docker-compose.yml
-├── .env.example
-└── README.md
+│       ├── config/          Postgres, Socket.io
+│       ├── routes/          auth, users, profiles, matches, chat, notifications, events
+│       ├── controllers/
+│       ├── middlewares/     JWT, upload, images
+│       ├── lib/             JWT, OAuth, bcrypt, mailer
+│       └── utils/           validateurs
+├── frontend/                SPA React
+│   └── src/
+│       ├── pages/
+│       ├── components/
+│       ├── context/         Auth, Socket, Call
+│       └── services/        axios + JWT
+├── database/                init.sql (schéma + tags)
+├── nginx/                   reverse proxy
+├── docker-compose.yml       Postgres 5432, API 3000, Vite 5173, Nginx 8080, MailDev 1080
+└── .env.example
 ```
 
-## 🛠 Development Commands
+## Scripts
 
-```bash
-# Start all services
-docker-compose up
+| Commande | Effet |
+| --- | --- |
+| `docker compose up --build` | Stack complète |
+| `docker compose down` | Arrêt |
+| `docker exec -it matcha_backend npm run seed` | 520 profils |
+| `docker exec -it matcha_backend npm run seed:photos` | Avatars |
+| `docker exec -it matcha_backend npm run seed:all` | Les deux |
+| `docker exec -it matcha_backend npm run security:check` | Contrôles de sécu |
+| `docker exec -it matcha_db psql -U matcha_user -d matcha_db` | CLI Postgres |
+| `cd backend && npm run dev` | API hors Docker |
+| `cd frontend && npm run dev` | Vite hors Docker |
+| `cd frontend && npm run build` | Build front |
 
-# Start in background
-docker-compose up -d
+Hors Docker, pointer `DB_HOST=localhost` et lancer Postgres (ou le seul service `db` du compose).
 
-# View logs
-docker-compose logs -f backend
-docker-compose logs -f frontend
+## Licence
 
-# Stop all services
-docker-compose down
-
-# Rebuild containers
-docker-compose up --build
-
-# Access database CLI
-docker exec -it matcha_db psql -U matcha_user -d matcha_db
-
-# Run database seed (500 profiles)
-docker exec -it matcha_backend npm run seed
-
-# Generate profile photos
-docker exec -it matcha_backend npm run seed:photos
-
-# Run both seeds
-docker exec -it matcha_backend npm run seed:all
-```
-
-## ✨ Features
-
-### Authentication
-- ✅ Registration with email verification
-- ✅ Login with JWT tokens
-- ✅ Password reset via email
-- ✅ Secure password hashing (bcrypt)
-
-### User Profile
-- ✅ Profile completion wizard
-- ✅ Photo upload (up to 5 photos)
-- ✅ GPS location with consent
-- ✅ Manual location entry
-- ✅ Interests/tags system
-- ✅ Fame rating
-
-### Matching
-- ✅ Smart profile suggestions
-- ✅ Sexual preference matching
-- ✅ Location-based matching
-- ✅ Common interests matching
-- ✅ Advanced search filters
-- ✅ Sort by distance, age, fame, tags
-
-### Interactions
-- ✅ Like/Unlike profiles
-- ✅ Mutual like detection (Match!)
-- ✅ Block users
-- ✅ Report fake accounts
-- ✅ Profile visit history
-
-### Real-time
-- ✅ Live chat with Socket.io
-- ✅ Typing indicators
-- ✅ Real-time notifications
-- ✅ Online status
-- ✅ Unread message badges
-
-## 🔒 Security Features
-
-- ✅ Password hashing with bcrypt (12 rounds)
-- ✅ JWT authentication
-- ✅ SQL injection protection (parameterized queries)
-- ✅ XSS protection (input sanitization)
-- ✅ Rate limiting
-- ✅ CORS configuration
-- ✅ Helmet security headers
-- ✅ File upload validation
-- ✅ Image processing (strip EXIF)
-- ✅ No plain-text passwords
-
-## 🛡 Security Checklist (for evaluation)
-
-| Requirement | Status |
-|-------------|--------|
-| No plain-text passwords in DB | ✅ bcrypt hash |
-| SQL injection protection | ✅ Parameterized queries |
-| Form validation | ✅ Server + client side |
-| XSS protection | ✅ Input sanitization |
-| File upload validation | ✅ Type, size, content check |
-| Authentication required | ✅ JWT middleware |
-| HTTPS ready | ✅ Nginx configured |
-
-## 🗄 Database Schema
-
-Main tables:
-- `users` - User accounts and profiles
-- `photos` - User photos
-- `tags` - Interest tags
-- `user_tags` - User-tag associations
-- `likes` - Like relationships
-- `blocks` - Block relationships
-- `reports` - Fake account reports
-- `profile_visits` - Visit history
-- `conversations` - Chat conversations
-- `messages` - Chat messages
-- `notifications` - User notifications
-
-## 📱 Responsive Design
-
-The application is fully responsive and works on:
-- ✅ Desktop browsers
-- ✅ Tablets
-- ✅ Mobile devices (iOS/Android)
-
-Tested on latest Chrome and Firefox.
-
-## 🔧 Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| Frontend | React 18, Vite, TailwindCSS |
-| Backend | Node.js, Express (micro-framework) |
-| Database | PostgreSQL (manual SQL queries) |
-| Real-time | Socket.io |
-| Reverse Proxy | Nginx |
-| Containerization | Docker, Docker Compose |
-| Email | Nodemailer (MailDev for dev) |
-
-## 📝 API Endpoints
-
-### Auth
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - Login
-- `POST /api/auth/logout` - Logout
-- `GET /api/auth/verify-email` - Verify email
-- `POST /api/auth/forgot-password` - Request password reset
-- `POST /api/auth/reset-password` - Reset password
-- `GET /api/auth/me` - Get current user
-
-### Users
-- `PUT /api/users/profile` - Update profile
-- `PUT /api/users/location` - Update location
-- `POST /api/users/photos` - Upload photo
-- `DELETE /api/users/photos/:id` - Delete photo
-- `PUT /api/users/tags` - Update tags
-
-### Profiles
-- `GET /api/profiles/browse` - Get suggestions
-- `GET /api/profiles/search` - Advanced search
-- `GET /api/profiles/:id` - Get profile
-- `POST /api/profiles/:id/like` - Like user
-- `DELETE /api/profiles/:id/like` - Unlike user
-- `POST /api/profiles/:id/block` - Block user
-- `POST /api/profiles/:id/report` - Report user
-
-### Matches
-- `GET /api/matches` - Get matches
-- `GET /api/matches/likes` - Get received likes
-- `GET /api/matches/visits` - Get profile visitors
-
-### Chat
-- `GET /api/chat/conversations` - Get conversations
-- `GET /api/chat/:id/messages` - Get messages
-- `POST /api/chat/:id/messages` - Send message
-
-### Notifications
-- `GET /api/notifications` - Get notifications
-- `PUT /api/notifications/:id/read` - Mark as read
-- `PUT /api/notifications/read-all` - Mark all as read
-
-## 📄 License
-
-This project is part of the 42 curriculum.
-
-## 👨‍💻 Author
-
-Built with ❤️ for the Matcha project.
+Projet pédagogique 42.
