@@ -31,6 +31,8 @@ const CompleteProfile = () => {
   const [photos, setPhotos] = useState([]);
   const [tags, setTags] = useState([]);
   const [location, setLocation] = useState(user?.location || null);
+  // A city suggestion was picked in the location step but not saved yet.
+  const [locationSelectionUnsaved, setLocationSelectionUnsaved] = useState(false);
 
   // Load user photos and tags on mount
   useEffect(() => {
@@ -127,6 +129,10 @@ const CompleteProfile = () => {
     }
 
     if (step === 4) {
+      if (locationSelectionUnsaved) {
+        setError('Save your location before continuing.');
+        return;
+      }
       if (!location?.city) {
         setError('Please set your location');
         return;
@@ -339,6 +345,7 @@ const CompleteProfile = () => {
             <LocationPicker
               location={location}
               onUpdate={setLocation}
+              onUnsavedSelection={setLocationSelectionUnsaved}
             />
           </div>
         )}

@@ -3,8 +3,9 @@ import { MapPin, Navigation, Loader, AlertCircle, Search, Check } from 'lucide-r
 import { userAPI } from '../../services/api';
 import { reverseGeocodeLocation } from '../../utils/reverseGeocodeLocation';
 
-const LocationPicker = ({ location, onUpdate }) => {
-  const [loading, setLoading] = useState(false);
+const LocationPicker = ({ location, onUpdate, onUnsavedSelection }) => {
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [manualMode, setManualMode] = useState(!location?.latitude);
 
@@ -21,25 +22,47 @@ const LocationPicker = ({ location, onUpdate }) => {
   const [selectedPlace, setSelectedPlace] = useState(null);
 
   const abortRef = useRef(null);
+  // Bumped to drop a GPS fix that resolves after the user picked manual entry.
+  const gpsRequestRef = useRef(0);
+
+  const invalidateGps = () => {
+    gpsRequestRef.current += 1;
+    setGpsLoading(false);
+  };
+
+  // Tell the signup wizard when a suggestion is chosen but not saved yet.
+  // Cleared on unmount so leaving the step does not keep blocking Continue.
+  useEffect(() => {
+    onUnsavedSelection?.(selectedPlace != null);
+  }, [selectedPlace, onUnsavedSelection]);
+
+  useEffect(() => {
+    return () => onUnsavedSelection?.(false);
+  }, [onUnsavedSelection]);
 
   // Get the GPS position
-  const handleGetLocation = async () => {
+  const handleGetLocation = () => {
     if (!navigator.geolocation) {
       setError('Geolocation is not supported by your browser');
       setManualMode(true);
       return;
     }
 
-    setLoading(true);
+    const requestId = gpsRequestRef.current + 1;
+    gpsRequestRef.current = requestId;
+    setGpsLoading(true);
     setError('');
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
+        if (gpsRequestRef.current !== requestId) return;
         const { latitude, longitude } = position.coords;
 
         try {
           // Reverse geocoding to get city/country
           const geoData = await reverseGeocodeLocation(latitude, longitude);
+          // User switched to a manual city while this request was in flight.
+          if (gpsRequestRef.current !== requestId) return;
 
           // Save to the server
           await userAPI.updateLocation({
@@ -49,6 +72,7 @@ const LocationPicker = ({ location, onUpdate }) => {
             country: geoData.country,
             consent: true
           });
+          if (gpsRequestRef.current !== requestId) return;
 
           onUpdate({
             latitude,
@@ -58,16 +82,21 @@ const LocationPicker = ({ location, onUpdate }) => {
             consent: true
           });
 
+          setSelectedPlace(null);
+          setQueryText('');
+          setSuggestions([]);
           setManualMode(false);
         } catch (err) {
+          if (gpsRequestRef.current !== requestId) return;
           setError('Failed to save location');
         } finally {
-          setLoading(false);
+          if (gpsRequestRef.current === requestId) setGpsLoading(false);
         }
       },
       () => {
+        if (gpsRequestRef.current !== requestId) return;
         // Permission denied or unavailable → manual entry
-        setLoading(false);
+        setGpsLoading(false);
         setError('Location permission denied or unavailable. Please search for your city.');
         setManualMode(true);
       },
@@ -154,30 +183,36 @@ const LocationPicker = ({ location, onUpdate }) => {
       return;
     }
 
-    setLoading(true);
+    const place = selectedPlace;
+    // Drop any GPS fix still in flight so it cannot overwrite this city.
+    invalidateGps();
+    setSaving(true);
     setError('');
 
     try {
       await userAPI.updateLocation({
-        latitude: selectedPlace.lat,
-        longitude: selectedPlace.lng,
-        city: selectedPlace.city,
-        country: selectedPlace.country || null,
+        latitude: place.lat,
+        longitude: place.lng,
+        city: place.city,
+        country: place.country || null,
         consent: false
       });
 
       onUpdate({
-        latitude: selectedPlace.lat,
-        longitude: selectedPlace.lng,
-        city: selectedPlace.city,
-        country: selectedPlace.country,
+        latitude: place.lat,
+        longitude: place.lng,
+        city: place.city,
+        country: place.country,
         consent: false
       });
+      setSelectedPlace(null);
+      setQueryText('');
+      setSuggestions([]);
       setManualMode(false);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to save location');
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
@@ -202,7 +237,9 @@ const LocationPicker = ({ location, onUpdate }) => {
             {location.city}{location.country ? `, ${location.country}` : ''}
           </span>
           <button
+            type="button"
             onClick={() => {
+              invalidateGps();
               setManualMode(true);
               setQueryText('');
               setSelectedPlace(null);
@@ -221,11 +258,12 @@ const LocationPicker = ({ location, onUpdate }) => {
         <div className="space-y-4 animate-fade-in">
           {/* Option GPS */}
           <button
+            type="button"
             onClick={handleGetLocation}
-            disabled={loading}
+            disabled={gpsLoading || saving}
             className="w-full p-4 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/10 transition-all flex items-center justify-center gap-2 cursor-pointer group"
           >
-            {loading ? (
+            {gpsLoading ? (
               <Loader className="w-5 h-5 animate-spin text-primary-500" />
             ) : (
               <Navigation className="w-5 h-5 text-primary-500 group-hover:scale-110 transition-transform" />
@@ -283,11 +321,12 @@ const LocationPicker = ({ location, onUpdate }) => {
             </div>
 
             <button
+              type="button"
               onClick={handleSaveManual}
-              disabled={loading || !selectedPlace}
+              disabled={saving || !selectedPlace}
               className="btn-primary w-full cursor-pointer py-2.5 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {loading ? (
+              {saving ? (
                 <Loader className="w-5 h-5 animate-spin" />
               ) : (
                 'Save Location'
@@ -295,7 +334,15 @@ const LocationPicker = ({ location, onUpdate }) => {
             </button>
             {location?.city && (
               <button
-                onClick={() => setManualMode(false)}
+                type="button"
+                onClick={() => {
+                  invalidateGps();
+                  setManualMode(false);
+                  setQueryText('');
+                  setSelectedPlace(null);
+                  setSuggestions([]);
+                  setError('');
+                }}
                 className="w-full py-1 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
               >
                 Cancel
