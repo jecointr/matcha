@@ -30,6 +30,9 @@ const TypingDots = ({ size = 'md' }) => {
   );
 };
 
+const MAX_MESSAGE_LENGTH = 1000;
+const MESSAGE_TOO_LONG = 'Message must be at most 1000 characters';
+
 const Chat = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -495,6 +498,13 @@ const Chat = () => {
       return;
     }
 
+    // Reject before the request so a too-long message never hits the catch
+    // (which logs console.error) and is never stored truncated.
+    if (newMessage.trim().length > MAX_MESSAGE_LENGTH) {
+      toast.error(MESSAGE_TOO_LONG);
+      return;
+    }
+
     if (activeConversation) {
       stopTyping(activeConversation.id, activeConversation.otherUser.id);
       isTypingRef.current = false;
@@ -585,6 +595,10 @@ const Chat = () => {
     const content = newMessage.trim();
     if (!content) {
       toast.error('Message content required.');
+      return;
+    }
+    if (content.length > MAX_MESSAGE_LENGTH) {
+      toast.error(MESSAGE_TOO_LONG);
       return;
     }
 
@@ -1158,7 +1172,7 @@ const Chat = () => {
                 </Link>
               </div>
             ) : (
-            <form onSubmit={handleSend} className="p-4 border-t dark:border-gray-800 flex gap-2 items-center transition-colors duration-200">
+            <form onSubmit={handleSend} className={`p-4 border-t dark:border-gray-800 flex gap-2 transition-colors duration-200 ${newMessage.trim().length > MAX_MESSAGE_LENGTH ? 'items-start' : 'items-center'}`}>
               <button
                 type="button"
                 onClick={() => setShowEventModal(true)}
@@ -1168,16 +1182,22 @@ const Chat = () => {
               >
                 <Calendar className="w-5 h-5" />
               </button>
-              <input
-                ref={messageInputRef}
-                type="text"
-                value={newMessage}
-                onChange={handleTyping}
-                placeholder={editingMessageId ? 'Edit your message…' : 'Type a message...'}
-                className="flex-1 input py-3"
-                maxLength={1000}
-                disabled={savingEdit}
-              />
+              <div className="flex-1 min-w-0">
+                <input
+                  ref={messageInputRef}
+                  type="text"
+                  value={newMessage}
+                  onChange={handleTyping}
+                  placeholder={editingMessageId ? 'Edit your message…' : 'Type a message...'}
+                  className="w-full input py-3"
+                  disabled={savingEdit}
+                />
+                {newMessage.trim().length > MAX_MESSAGE_LENGTH && (
+                  <p className="text-[11px] text-right text-red-500 mt-1">
+                    {newMessage.trim().length} / {MAX_MESSAGE_LENGTH}
+                  </p>
+                )}
+              </div>
               <button
                 type="submit"
                 disabled={!newMessage.trim() || sending || savingEdit}

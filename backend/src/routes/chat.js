@@ -6,6 +6,8 @@ import xss from 'xss';
 
 const router = Router();
 
+const MAX_MESSAGE_LENGTH = 1000;
+
 router.use(authenticate);
 router.use(requireVerified);
 
@@ -310,12 +312,21 @@ router.post('/:conversationId/messages', async (req, res) => {
     const { conversationId } = req.params;
     const { content, replyToId } = req.body;
 
-    // Validate content
-    if (!content || typeof content !== 'string' || content.trim().length === 0) {
+    // Validate content. Length is measured before xss(), which can lengthen
+    // the string when it escapes characters.
+    if (!content || typeof content !== 'string') {
       return res.status(400).json({ error: 'Message content required' });
     }
 
-    const cleanContent = xss(content.trim()).slice(0, 1000);
+    const trimmed = content.trim();
+    if (trimmed.length === 0) {
+      return res.status(400).json({ error: 'Message content required' });
+    }
+    if (trimmed.length > MAX_MESSAGE_LENGTH) {
+      return res.status(400).json({ error: 'Message must be at most 1000 characters' });
+    }
+
+    const cleanContent = xss(trimmed);
 
     // Verify user is part of conversation and get other user
     const conversation = await queryOne(`
@@ -519,11 +530,19 @@ router.put('/messages/:messageId', async (req, res) => {
       return res.status(400).json({ error: 'Invalid message id' });
     }
 
-    if (!content || typeof content !== 'string' || content.trim().length === 0) {
+    if (!content || typeof content !== 'string') {
       return res.status(400).json({ error: 'Message content required' });
     }
 
-    const cleanContent = xss(content.trim()).slice(0, 1000);
+    const trimmed = content.trim();
+    if (trimmed.length === 0) {
+      return res.status(400).json({ error: 'Message content required' });
+    }
+    if (trimmed.length > MAX_MESSAGE_LENGTH) {
+      return res.status(400).json({ error: 'Message must be at most 1000 characters' });
+    }
+
+    const cleanContent = xss(trimmed);
 
     // Load message + conversation participants
     const message = await queryOne(`
